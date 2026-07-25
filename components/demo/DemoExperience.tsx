@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, RotateCcw, Brain, Target, Zap,
   CheckCircle2, AlertTriangle, Info, Printer, ChevronDown, ChevronUp,
-  FlaskConical, Copy, Check, GitBranch, Sliders,
+  FlaskConical, Copy, Check, GitBranch, Sliders, Lock,
+  Activity, BookOpen, TrendingUp,
 } from "lucide-react";
 
 // ── Question definitions ────────────────────────────────────────────────────────
@@ -32,9 +33,21 @@ const QUESTIONS = [
 type QuestionId = typeof QUESTIONS[number]["id"];
 
 const SECTIONS = [
-  { id: "mind",     label: "Mind",            icon: Brain,  color: "text-blue-400",  bg: "bg-blue-400/10",  border: "border-blue-400/30",  questions: ["m1","m2","m3","m4"] },
-  { id: "goal",     label: "Goal",            icon: Target, color: "text-green-400", bg: "bg-green-400/10", border: "border-green-400/30", questions: ["g1","g2","g3","g4"] },
-  { id: "capacity", label: "Body / Capacity", icon: Zap,    color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/30", questions: ["c1","c2","c3","c4"] },
+  {
+    id: "mind",     label: "Mind",            icon: Brain,  color: "text-blue-400",  bg: "bg-blue-400/10",  border: "border-blue-400/30",  questions: ["m1","m2","m3","m4"],
+    description: "Assesses your current cognitive state — attention clarity, concentration quality, mental overload and emotional pressure.",
+    signals: ["Attention clarity", "Concentration", "Cognitive overload", "Emotional stability"],
+  },
+  {
+    id: "goal",     label: "Goal",            icon: Target, color: "text-green-400", bg: "bg-green-400/10", border: "border-green-400/30", questions: ["g1","g2","g3","g4"],
+    description: "Evaluates how clearly defined your primary goal is, how much it matters to you, and how confident you are in making progress.",
+    signals: ["Goal clarity", "Personal importance", "Confidence level", "Next-step visibility"],
+  },
+  {
+    id: "capacity", label: "Body / Capacity", icon: Zap,    color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/30", questions: ["c1","c2","c3","c4"],
+    description: "Measures the physical and mental resources available for focused action — energy, recovery, workload and sustained attention.",
+    signals: ["Energy level", "Sleep & recovery", "Workload pressure", "Sustained focus"],
+  },
 ] as const;
 
 const SCALE_LABELS = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
@@ -106,10 +119,14 @@ function simulateScores(focus: number, goal: number, capacity: number): SimScore
 function simToScoreResult(s: SimScores): ScoreResult {
   const spread = Math.max(s.focus, s.goal, s.capacity) - Math.min(s.focus, s.goal, s.capacity);
   const sorted = Object.entries({ Mind: s.focus, Goal: s.goal, Capacity: s.capacity }).sort((a,b) => b[1]-a[1]);
+  const avgScore = (s.focus + s.goal + s.capacity) / 3;
+  const spreadPenalty = Math.round((spread / 100) * 35);
+  const lowScorePenalty = avgScore < 40 ? 25 : avgScore < 55 ? 15 : avgScore < 70 ? 5 : 0;
   return {
     mindScore: s.focus, goalScore: s.goal, capacityScore: s.capacity,
     focusIndex: s.focus, goalAlignment: s.goal, capacityIndex: s.capacity,
     decisionReadiness: s.decisionReadiness,
+    decisionConfidence: Math.max(0, Math.min(100, 100 - spreadPenalty - lowScorePenalty)),
     riskLevel: s.riskLevel,
     strongestSignal: `${sorted[0]![0]} (${sorted[0]![1]}/100)`,
     primaryConstraint: s.primaryConstraint,
@@ -314,6 +331,8 @@ export function DemoExperience() {
   const [simCapacity, setSimCapacity] = useState(0);
   const [lastScenario, setLastScenario] = useState<string | null>(null);
   const [copied, setCopied]           = useState(false);
+  // M3: signal explanation expand state
+  const [sigExpanded, setSigExpanded] = useState<string | null>(null);
 
   // ── Derived (assessment phase helpers, unchanged) ──────────────────────────
   const section      = SECTIONS[currentSection]!;
@@ -446,9 +465,22 @@ export function DemoExperience() {
     );
   }
 
-  // ── ASSESSMENT (unchanged) ──────────────────────────────────────────────────
+  // ── ASSESSMENT (M3: diagnostic header + live signal panel) ─────────────────
   if (phase === "assessment") {
     const Icon = section.icon;
+    // Live partial scores for the live signal panel
+    const liveMinds    = QUESTIONS.filter(q => q.section === "mind").map(q => answers[q.id as QuestionId] ?? 0);
+    const liveGoals    = QUESTIONS.filter(q => q.section === "goal").map(q => answers[q.id as QuestionId] ?? 0);
+    const liveCaps     = QUESTIONS.filter(q => q.section === "capacity").map(q => answers[q.id as QuestionId] ?? 0);
+    const liveScore = (vals: number[]) => {
+      const answered = vals.filter(v => v > 0);
+      if (answered.length === 0) return null;
+      return Math.round(answered.reduce((a, b) => a + b, 0) / answered.length / 4 * 100);
+    };
+    const liveMindScore = liveScore(liveMinds);
+    const liveGoalScore = liveScore(liveGoals);
+    const liveCapScore  = liveScore(liveCaps);
+
     return (
       <div className="mx-auto max-w-xl px-4 py-8">
         <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
@@ -460,12 +492,52 @@ export function DemoExperience() {
         <div className="mb-6 h-1 w-full overflow-hidden rounded-full bg-slate-800">
           <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${overallProgress}%` }} />
         </div>
-        <div className={cn("mb-6 flex items-center gap-3 rounded-xl border p-4", section.bg, section.border)}>
-          <Icon className={cn("h-6 w-6 flex-shrink-0", section.color)} />
-          <div>
-            <p className={cn("font-bold", section.color)}>{section.label}</p>
-            <p className="text-xs text-slate-400">Section {currentSection + 1} of {SECTIONS.length} · 4 questions</p>
+
+        {/* Diagnostic section header */}
+        <div className={cn("mb-5 rounded-xl border p-4", section.bg, section.border)}>
+          <div className="flex items-center gap-3 mb-2">
+            <Icon className={cn("h-6 w-6 flex-shrink-0", section.color)} />
+            <div>
+              <p className={cn("font-bold", section.color)}>{section.label}</p>
+              <p className="text-xs text-slate-400">Section {currentSection + 1} of {SECTIONS.length} · 4 questions</p>
+            </div>
           </div>
+          <p className="text-xs text-slate-400 leading-relaxed mb-2">{section.description}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {section.signals.map(sig => (
+              <span key={sig} className={cn("rounded-full border px-2 py-0.5 text-xs", section.border, section.color, "bg-transparent opacity-80")}>
+                {sig}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Live signal panel */}
+        <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500 mb-3 flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5" /> Live signals
+          </p>
+          <div className="space-y-2">
+            {[
+              { label: "Mind",         score: liveMindScore, color: "bg-blue-500",  textColor: "text-blue-400"  },
+              { label: "Goal",         score: liveGoalScore, color: "bg-green-500", textColor: "text-green-400" },
+              { label: "Body/Cap",     score: liveCapScore,  color: "bg-amber-500", textColor: "text-amber-400" },
+            ].map(({ label, score, color, textColor }) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className={cn("text-xs font-medium w-14 flex-shrink-0", textColor)}>{label}</span>
+                <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                  <div
+                    className={cn("h-1.5 rounded-full transition-all duration-500", color)}
+                    style={{ width: score !== null ? `${score}%` : "0%" }}
+                  />
+                </div>
+                <span className="text-xs text-slate-500 w-12 text-right">
+                  {score !== null ? `~${score}/100` : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-600 italic">Partial estimates — finalised when all questions are answered.</p>
         </div>
         <div className="space-y-8">
           {sectionQuestions.map((q, qi) => {
@@ -554,6 +626,42 @@ export function DemoExperience() {
           </div>
         </div>
 
+        {/* 0. Diagnostic Timeline */}
+        <div className="mb-8 rounded-2xl border border-slate-700 bg-slate-800/40 p-5">
+          <p className="text-xs uppercase tracking-wide text-slate-500 mb-4 flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5" /> Diagnostic pipeline
+          </p>
+          <div className="flex items-start gap-0 overflow-x-auto pb-1">
+            {[
+              { label: "Questions",          sublabel: "12 answered",           icon: BookOpen,     done: true  },
+              { label: "Signal Extraction",  sublabel: "Mind · Goal · Capacity", icon: Activity,    done: true  },
+              { label: "Score Calculation",  sublabel: "Deterministic formulas", icon: TrendingUp,  done: true  },
+              { label: "Cross-domain",       sublabel: "Tension & leverage",     icon: GitBranch,   done: true  },
+              { label: "Decision Logic",     sublabel: "Rule matching",          icon: Brain,       done: true  },
+              { label: "Recommendation",     sublabel: `Pattern ${rec.pattern}`, icon: CheckCircle2, done: true },
+            ].map((step, i, arr) => {
+              const StepIcon = step.icon;
+              return (
+                <div key={step.label} className="flex items-center flex-shrink-0">
+                  <div className="flex flex-col items-center text-center w-20 sm:w-24">
+                    <div className={cn(
+                      "h-8 w-8 rounded-full border-2 flex items-center justify-center mb-1",
+                      step.done ? "border-indigo-500 bg-indigo-500/20" : "border-slate-600 bg-slate-800"
+                    )}>
+                      <StepIcon className={cn("h-3.5 w-3.5", step.done ? "text-indigo-400" : "text-slate-600")} />
+                    </div>
+                    <p className={cn("text-xs font-medium leading-tight", step.done ? "text-slate-200" : "text-slate-600")}>{step.label}</p>
+                    <p className="text-xs text-slate-600 leading-tight mt-0.5 hidden sm:block">{step.sublabel}</p>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div className="h-px w-4 sm:w-6 bg-indigo-500/40 flex-shrink-0 mx-0.5 mt-[-14px]" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 1. Decision Readiness hero */}
         <div className="mb-6 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-6 text-center">
           <p className="text-sm text-slate-400 mb-1">Decision Readiness</p>
@@ -603,7 +711,26 @@ export function DemoExperience() {
             </span>
           </div>
           <h2 className="text-xl font-bold text-white mb-2">{rec.title}</h2>
-          <p className="text-slate-300 text-sm leading-relaxed mb-4">{rec.rationale}</p>
+          <p className="text-slate-300 text-sm leading-relaxed mb-3">{rec.rationale}</p>
+          {/* M3: Recommendation quality fields */}
+          <div className="mb-4 grid gap-2 sm:grid-cols-2 text-xs">
+            <div className="rounded-lg bg-slate-700/40 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Primary driver</p>
+              <p className="text-slate-300">{rec.reason}</p>
+            </div>
+            <div className="rounded-lg bg-slate-700/40 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Expected benefit</p>
+              <p className="text-slate-300">{rec.expectedBenefit}</p>
+            </div>
+            <div className="rounded-lg bg-slate-700/40 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Possible limitation</p>
+              <p className="text-slate-300">{rec.possibleLimitation}</p>
+            </div>
+            <div className="rounded-lg bg-slate-700/40 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Next review point</p>
+              <p className="text-slate-300">{rec.nextReviewPoint}</p>
+            </div>
+          </div>
           <div className="rounded-xl bg-slate-700/50 p-4">
             <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Recommended next action</p>
             <p className="text-white font-medium">{rec.nextAction}</p>
@@ -650,6 +777,149 @@ export function DemoExperience() {
           )}
         </div>
 
+        {/* 3b. M3: Signal explanations — "What influences this score?" */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Info className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">What influences each score?</h3>
+          </div>
+          <div className="space-y-2">
+            {[
+              {
+                id: "focus",
+                label: "Focus Index",
+                value: scores.focusIndex,
+                icon: Brain,
+                color: "text-blue-400",
+                formula: "Mind × 60% + Capacity × 40%",
+                contributors: [
+                  `Q1 — Mental clarity: ${answers.m1}/5`,
+                  `Q2 — Concentration: ${answers.m2}/5`,
+                  `Q3 — Cognitive overload (reverse): ${answers.m3}/5`,
+                  `Q4 — Emotional pressure (reverse): ${answers.m4}/5`,
+                  `Q9 — Energy level (capacity component): ${answers.c1}/5`,
+                  `Q10 — Sleep & recovery: ${answers.c2}/5`,
+                ],
+                note: "Overload and pressure are reverse-scored — higher answer = lower score.",
+              },
+              {
+                id: "goal",
+                label: "Goal Alignment",
+                value: scores.goalAlignment,
+                icon: Target,
+                color: "text-green-400",
+                formula: "Average of 4 goal questions",
+                contributors: [
+                  `Q5 — Goal clarity: ${answers.g1}/5`,
+                  `Q6 — Personal importance: ${answers.g2}/5`,
+                  `Q7 — Confidence: ${answers.g3}/5`,
+                  `Q8 — Next-step clarity: ${answers.g4}/5`,
+                ],
+                note: "All goal questions are direct-scored — higher answer = higher score.",
+              },
+              {
+                id: "capacity",
+                label: "Capacity Index",
+                value: scores.capacityIndex,
+                icon: Zap,
+                color: "text-amber-400",
+                formula: "Average of 4 capacity questions",
+                contributors: [
+                  `Q9 — Energy level: ${answers.c1}/5`,
+                  `Q10 — Sleep & recovery: ${answers.c2}/5`,
+                  `Q11 — Workload (reverse): ${answers.c3}/5`,
+                  `Q12 — Sustained focus: ${answers.c4}/5`,
+                ],
+                note: "Workload is reverse-scored — higher workload answer = lower capacity score.",
+              },
+            ].map(({ id, label, value, icon: SIcon, color, formula, contributors, note }) => {
+              const isOpen = sigExpanded === id;
+              return (
+                <div key={id} className="rounded-xl border border-slate-700 bg-slate-800/30 overflow-hidden">
+                  <button
+                    onClick={() => setSigExpanded(isOpen ? null : id)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-700/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <SIcon className={cn("h-4 w-4", color)} />
+                      <span className="text-sm font-medium text-slate-200">{label}</span>
+                      <span className={cn("text-sm font-bold ml-2", scoreColor(value))}>{value}/100</span>
+                    </div>
+                    {isOpen ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 pt-1 space-y-3 text-xs">
+                      <div className="rounded-lg bg-slate-900/60 px-3 py-2">
+                        <span className="text-slate-500">Formula: </span>
+                        <span className="text-indigo-300 font-mono">{formula}</span>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 uppercase tracking-wide mb-1.5">Contributing questions</p>
+                        <ul className="space-y-1">
+                          {contributors.map((c, ci) => (
+                            <li key={ci} className="flex items-start gap-2 text-slate-400">
+                              <span className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-500/60" />
+                              {c}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p className="text-slate-600 italic">{note}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3c. M3: Decision Confidence score */}
+        <div className="mb-6 rounded-2xl border border-indigo-400/20 bg-indigo-500/5 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Decision Confidence</h3>
+            <span className="rounded-full border border-indigo-400/30 px-2 py-0.5 text-xs text-indigo-300">New in M3</span>
+          </div>
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            Decision Confidence measures how consistent and well-balanced the three signals are.
+            High confidence means the domains are closely aligned and scores are above the threshold for reliable pattern-matching.
+            Low confidence indicates spread or low scores — the recommendation still applies, but apply additional judgement.
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between text-sm mb-1.5">
+                <span className="text-slate-400">Signal consistency</span>
+                <span className={cn("font-bold", scoreColor(scores.decisionConfidence))}>{scores.decisionConfidence}<span className="text-slate-500 font-normal">/100</span></span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-slate-700">
+                <div className={cn("h-2.5 rounded-full transition-all duration-700", scoreBarColor(scores.decisionConfidence))} style={{ width: `${scores.decisionConfidence}%` }} />
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Score spread</p>
+              <p className={cn("font-semibold", Math.max(scores.mindScore, scores.goalScore, scores.capacityScore) - Math.min(scores.mindScore, scores.goalScore, scores.capacityScore) < 20 ? "text-green-300" : Math.max(scores.mindScore, scores.goalScore, scores.capacityScore) - Math.min(scores.mindScore, scores.goalScore, scores.capacityScore) < 40 ? "text-amber-300" : "text-red-300")}>
+                {Math.max(scores.mindScore, scores.goalScore, scores.capacityScore) - Math.min(scores.mindScore, scores.goalScore, scores.capacityScore)} pts
+              </p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Average score</p>
+              <p className={cn("font-semibold", scoreColor(Math.round((scores.mindScore + scores.goalScore + scores.capacityScore) / 3)))}>
+                {Math.round((scores.mindScore + scores.goalScore + scores.capacityScore) / 3)}/100
+              </p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 uppercase tracking-wide mb-0.5">Confidence band</p>
+              <p className={cn("font-semibold",
+                scores.decisionConfidence >= 70 ? "text-green-300" :
+                scores.decisionConfidence >= 45 ? "text-amber-300" : "text-red-300")}>
+                {scores.decisionConfidence >= 70 ? "High" : scores.decisionConfidence >= 45 ? "Moderate" : "Low"}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* 4. ICF Human Development Graph */}
         <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
           <div className="flex items-center gap-2 mb-1">
@@ -661,6 +931,28 @@ export function DemoExperience() {
             goal alignment and available capacity. Additional ICF domains will expand the model over time.
           </p>
           <HumanDevelopmentGraph mind={scores.focusIndex} goal={scores.goalAlignment} body={scores.capacityIndex} />
+          {/* M3: Future module descriptions */}
+          <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
+            {[
+              { label: "Language", caps: ["Verbal reasoning", "Communication clarity", "Linguistic adaptability"] },
+              { label: "Scenario", caps: ["Risk scenario modelling", "Decision branching", "Consequence mapping"] },
+              { label: "Global",   caps: ["System-level awareness", "Cultural context", "Long-range impact"] },
+            ].map(({ label, caps }) => (
+              <div key={label} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-2.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Lock className="h-3 w-3 text-slate-600" />
+                  <span className="text-slate-500 font-medium">Future module: {label}</span>
+                </div>
+                <ul className="space-y-0.5">
+                  {caps.map(c => (
+                    <li key={c} className="flex items-start gap-1.5 text-slate-600">
+                      <span className="mt-1 h-1 w-1 flex-shrink-0 rounded-full bg-slate-700" />{c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* 5. Cross-domain insights */}
@@ -902,7 +1194,7 @@ export function DemoExperience() {
     );
   }
 
-  // ── REPORT (unchanged) ──────────────────────────────────────────────────────
+  // ── REPORT (M3 expanded) ────────────────────────────────────────────────────
   if (phase === "report" && scores && rec) {
     const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
     const profileCode = buildProfileCode(scores);
@@ -942,6 +1234,7 @@ export function DemoExperience() {
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ["Decision Readiness", scores.decisionReadiness],
+                ["Decision Confidence", scores.decisionConfidence],
                 ["Focus Index",        scores.focusIndex],
                 ["Goal Alignment",     scores.goalAlignment],
                 ["Capacity Index",     scores.capacityIndex],
@@ -960,6 +1253,71 @@ export function DemoExperience() {
               </div>
             </div>
           </section>
+
+          {/* M3: Decision Confidence in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Decision Confidence</h2>
+            <div className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-5 print:border-indigo-300 print:bg-indigo-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-300 print:text-slate-700">Signal consistency score</span>
+                <span className={cn("font-bold text-lg", scoreColor(scores.decisionConfidence))}>{scores.decisionConfidence}/100</span>
+              </div>
+              <p className="text-xs text-slate-400 print:text-slate-600 leading-relaxed">
+                Decision Confidence measures how consistent and complete the signal pattern is across all three domains.
+                A high score ({'>'}70) means domains are closely aligned and pattern-matching is reliable.
+                A lower score means significant spread between domains — the recommendation still applies but warrants additional judgement.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3 text-xs">
+                {[
+                  { label: "Score spread", value: `${Math.max(scores.mindScore, scores.goalScore, scores.capacityScore) - Math.min(scores.mindScore, scores.goalScore, scores.capacityScore)} pts` },
+                  { label: "Average domain score", value: `${Math.round((scores.mindScore + scores.goalScore + scores.capacityScore) / 3)}/100` },
+                  { label: "Confidence band", value: scores.decisionConfidence >= 70 ? "High" : scores.decisionConfidence >= 45 ? "Moderate" : "Low" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-lg bg-slate-800/60 px-3 py-2 print:bg-slate-100">
+                    <p className="text-slate-500 mb-0.5">{label}</p>
+                    <p className="font-semibold text-slate-200 print:text-slate-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* M3: ICF Human Development Graph in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">ICF Human Development Graph</h2>
+            <HumanDevelopmentGraph mind={scores.focusIndex} goal={scores.goalAlignment} body={scores.capacityIndex} />
+          </section>
+
+          {/* M3: Cross-domain insights in report */}
+          {(() => {
+            const ins = crossDomainInsights(scores.focusIndex, scores.goalAlignment, scores.capacityIndex);
+            return (
+              <section className="mb-8">
+                <h2 className="text-lg font-bold text-white print:text-black mb-3">Cross-Domain Insights</h2>
+                <div className="rounded-xl border border-indigo-400/20 bg-indigo-500/5 p-4 mb-3 print:border-indigo-200 print:bg-indigo-50">
+                  <p className="text-sm text-white print:text-black font-medium">{ins.narrativeInsight}</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                  <div className="rounded-lg bg-slate-800/40 p-3 print:bg-slate-50 print:border print:border-slate-200">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Strongest domain</p>
+                    <p className="font-semibold text-green-300 print:text-green-700">{ins.strongest}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/40 p-3 print:bg-slate-50 print:border print:border-slate-200">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Primary constraint</p>
+                    <p className="font-semibold text-red-300 print:text-red-700">{ins.weakest}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/40 p-3 print:bg-slate-50 print:border print:border-slate-200">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Primary tension</p>
+                    <p className="text-slate-300 print:text-slate-700">{ins.primaryTension}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/40 p-3 print:bg-slate-50 print:border print:border-slate-200">
+                    <p className="text-xs text-slate-500 uppercase mb-1">Best leverage point</p>
+                    <p className="text-slate-300 print:text-slate-700">{ins.leverage}</p>
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
 
           <section className="mb-8">
             <h2 className="text-lg font-bold text-white print:text-black mb-3">Signal Interpretation</h2>

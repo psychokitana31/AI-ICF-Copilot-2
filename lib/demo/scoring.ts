@@ -47,6 +47,12 @@ export interface ScoreResult {
   // Weighted: Goal 40% + Mind 35% + Capacity 25%
   decisionReadiness: number;
 
+  // Decision Confidence (0–100)
+  // How consistent and complete the signal pattern is.
+  // High when all three domains are close together AND above 40.
+  // Penalised by high spread or very low scores.
+  decisionConfidence: number;
+
   // Risk level derived from lowest domain score
   riskLevel: "Low" | "Moderate" | "High";
 
@@ -124,6 +130,14 @@ export function scoreAnswers(a: Answers): ScoreResult {
     spread < 40 ? "Moderate" :
     "Low";
 
+  // ── Decision Confidence ───────────────────────────────────────────────────────
+  // Starts at 100, penalised by spread and low individual scores.
+  // spread penalty: up to -35 pts  |  low-score penalty: up to -25 pts
+  const avgScore = (mind + goal + capacity) / 3;
+  const spreadPenalty = Math.round((spread / 100) * 35);
+  const lowScorePenalty = avgScore < 40 ? 25 : avgScore < 55 ? 15 : avgScore < 70 ? 5 : 0;
+  const decisionConfidence = Math.max(0, Math.min(100, 100 - spreadPenalty - lowScorePenalty));
+
   return {
     mindScore: mind,
     goalScore: goal,
@@ -132,6 +146,7 @@ export function scoreAnswers(a: Answers): ScoreResult {
     goalAlignment,
     capacityIndex,
     decisionReadiness,
+    decisionConfidence,
     riskLevel,
     strongestSignal,
     primaryConstraint,

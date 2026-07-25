@@ -15,9 +15,14 @@ export interface Recommendation {
   priority: string;
   nextAction: string;
   sevenDayPlan: string[];
-  whyText: string;         // Explainability narrative
+  whyText: string;                 // Explainability narrative
   influencingFactors: string[];
   missingInformation: string[];
+  // M3 additions — recommendation quality metadata
+  reason: string;                  // One-sentence primary driver
+  expectedBenefit: string;         // What should improve and roughly when
+  possibleLimitation: string;      // Main risk or assumption
+  nextReviewPoint: string;         // When / condition to re-assess
 }
 
 /**
@@ -98,6 +103,10 @@ const PATTERNS = {
       "External support or resources available (not assessed)",
       "Body / Language domain signals (roadmap)",
     ],
+    reason: "High goal clarity combined with low available capacity creates a scope-overload risk.",
+    expectedBenefit: "Reduced strain and improved execution quality within 7 days of scope reduction.",
+    possibleLimitation: "External deadlines may prevent full scope reduction; adapt the plan to real constraints.",
+    nextReviewPoint: "Re-assess capacity signals after 7 days or when recovery markers improve.",
   }),
 
   B: (s: ScoreResult): Recommendation => ({
@@ -130,6 +139,10 @@ const PATTERNS = {
       "External constraints on the goal (not assessed)",
       "Scenario / Language domain signals (roadmap)",
     ],
+    reason: "Available capacity is being wasted because the decision target lacks sufficient clarity.",
+    expectedBenefit: "Once the goal is defined, existing capacity can be directed immediately — progress within 3–5 days.",
+    possibleLimitation: "Goal clarity may require external input (feedback, coaching) not captured in this assessment.",
+    nextReviewPoint: "Re-assess goal domain scores after 1 week of deliberate goal-clarification work.",
   }),
 
   C: (s: ScoreResult): Recommendation => ({
@@ -162,6 +175,10 @@ const PATTERNS = {
       "Sleep quality details (partially assessed)",
       "Body / Language domain signals (roadmap)",
     ],
+    reason: "Cognitive overload and elevated emotional pressure are fragmenting focus and reducing decision quality.",
+    expectedBenefit: "Clearer thinking and improved execution quality within 3–4 days of priority reduction.",
+    possibleLimitation: "External pressures (work, family) may make full priority reduction difficult; partial reduction still helps.",
+    nextReviewPoint: "Re-assess mind domain scores after 7 days of single-priority focus.",
   }),
 
   D: (s: ScoreResult): Recommendation => ({
@@ -195,6 +212,10 @@ const PATTERNS = {
       "External dependencies and resources (not assessed)",
       "Language / Scenario / Global domains (roadmap)",
     ],
+    reason: "All three domains are sufficiently balanced to support structured execution without major constraint.",
+    expectedBenefit: "Meaningful progress on the primary goal's first milestone within the 7-day window.",
+    possibleLimitation: "Balanced scores do not guarantee success — external disruptions may require plan adjustment mid-cycle.",
+    nextReviewPoint: "Re-assess at the end of the 7-day plan to confirm continued balance before the next cycle.",
   }),
 
   E: (s: ScoreResult): Recommendation => ({
@@ -227,5 +248,9 @@ const PATTERNS = {
       "Available support network (not assessed)",
       "Professional assessment may be warranted",
     ],
+    reason: "At least one domain is critically low — major decisions under high-risk signals have elevated failure probability.",
+    expectedBenefit: "Reduced risk of poor outcomes; stabilisation of the highest-risk domain within 7–14 days.",
+    possibleLimitation: "External circumstances may prevent full pause of decisions; apply the recommendation proportionally.",
+    nextReviewPoint: "Re-assess after 7 days, or when the primary stressor has reduced. Seek professional support if signals persist.",
   }),
 };

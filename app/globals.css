@@ -57,3 +57,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for the ICF Demo Report */
+@media print {
+  body { background: white !important; color: black !important; }
+  .print\:hidden { display: none !important; }
+  nav, footer, aside { display: none !important; }
+  #icf-report { border: none !important; box-shadow: none !important; }
+  @page { margin: 1.5cm; }
+}

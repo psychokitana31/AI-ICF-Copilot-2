@@ -17,7 +17,7 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
   const demoMode = params.mode === "demo";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen text-slate-100" style={{ background: "#0b1324" }}>
       {/* Skip link */}
       <a
         href="#assessment-content"
@@ -28,13 +28,13 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
 
       {/* ── Sticky nav ─────────────────────────────────────────────────────── */}
       <header
-        className="sticky top-0 z-50 border-b border-white/[0.06]"
-        style={{ background: "rgba(2,6,23,0.9)", backdropFilter: "blur(20px) saturate(160%)" }}
+        className="sticky top-0 z-50 border-b border-slate-700/50"
+        style={{ background: "rgba(11,19,36,0.95)", backdropFilter: "blur(16px)" }}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+            className="flex items-center gap-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
             aria-label="Return to ICF AI Copilot home"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

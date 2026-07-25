@@ -137,43 +137,41 @@
 
   /* Premium glass card */
   .icf-glass {
-    background: rgba(15, 20, 40, 0.7);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: rgba(17, 24, 45, 0.8);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.07);
     box-shadow:
-      0 0 0 1px rgba(255,255,255,0.04) inset,
-      0 4px 24px rgba(0,0,0,0.3),
-      0 1px 2px rgba(0,0,0,0.2);
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 4px 20px rgba(0,0,0,0.2);
   }
 
   /* Premium card base — used throughout the dashboard */
   .icf-card {
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(99,102,241,0.1);
+    background: rgba(17, 26, 50, 0.9);
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: 16px;
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.03) inset,
-      0 2px 16px rgba(0,0,0,0.25);
+      0 2px 12px rgba(0,0,0,0.18);
     transition: border-color 200ms, box-shadow 200ms;
   }
 
   .icf-card:hover {
-    border-color: rgba(99,102,241,0.22);
+    border-color: rgba(255,255,255,0.11);
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.04) inset,
-      0 4px 24px rgba(0,0,0,0.3),
-      0 0 0 2px rgba(99,102,241,0.06);
+      0 4px 20px rgba(0,0,0,0.22);
   }
 
   /* Score ring glow — applied to hero readiness number */
   .icf-score-hero {
-    text-shadow: 0 0 32px currentColor;
+    text-shadow: 0 0 20px currentColor;
   }
 
   /* Subtle bottom-border separator */
   .icf-divider {
-    border-bottom: 1px solid rgba(99,102,241,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
   }
 }
 

@@ -44,3 +44,10 @@ htmlcov/
 *.pem
 *.key
 secrets.json
+
+# Generated Next.js files
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Old extracted zip folder
+AI-ICF-Copilot-main/

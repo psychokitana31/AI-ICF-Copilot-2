@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type Answers, scoreAnswers, SAMPLE_ANSWERS } from "@/lib/demo/scoring";
 import { selectRecommendation } from "@/lib/demo/recommendations";
 import type { ScoreResult } from "@/lib/demo/scoring";
@@ -21,7 +21,7 @@ import {
   CheckCircle2, AlertTriangle, Info, Printer, ChevronDown, ChevronUp,
   FlaskConical, Copy, Check, GitBranch, Sliders, Lock,
   Activity, BookOpen, TrendingUp, ListTree, ShieldCheck,
-  FileText, BarChart3, Layers,
+  FileText, BarChart3, Layers, PlayCircle,
 } from "lucide-react";
 
 // ── Question definitions ────────────────────────────────────────────────────────
@@ -363,8 +363,8 @@ function DecisionTreeView({ node, depth = 0 }: { node: TreeNode; depth?: number 
 
 // ── Main component ──────────────────────────────────────────────────────────────
 
-export function DemoExperience() {
-  // ── Existing state (unchanged) ──────────────────────────────────────────────
+export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
+  // ── State ───────────────────────────────────────────────────────────────────
   const [phase, setPhase]           = useState<Phase>("intro");
   const [answers, setAnswers]       = useState<Answers>(EMPTY_ANSWERS);
   const [currentSection, setCurrentSection] = useState(0);
@@ -373,15 +373,29 @@ export function DemoExperience() {
   const [rec, setRec]               = useState<Recommendation | null>(null);
   const [whyOpen, setWhyOpen]       = useState(true);
   const [isSample, setIsSample]     = useState(false);
-
-  // ── New state: Decision Twin simulator ─────────────────────────────────────
   const [simFocus,    setSimFocus]    = useState(0);
   const [simGoal,     setSimGoal]     = useState(0);
   const [simCapacity, setSimCapacity] = useState(0);
   const [lastScenario, setLastScenario] = useState<string | null>(null);
   const [copied, setCopied]           = useState(false);
-  // M3: signal explanation expand state
   const [sigExpanded, setSigExpanded] = useState<string | null>(null);
+
+  // ── Demo Mode: auto-load sample on mount when ?mode=demo ───────────────────
+  useEffect(() => {
+    if (autoDemo) {
+      const s = scoreAnswers(SAMPLE_ANSWERS);
+      const r = selectRecommendation(s);
+      setAnswers(SAMPLE_ANSWERS);
+      setScores(s);
+      setRec(r);
+      setSimFocus(s.focusIndex);
+      setSimGoal(s.goalAlignment);
+      setSimCapacity(s.capacityIndex);
+      setIsSample(true);
+      setPhase("dashboard");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDemo]);
 
   // ── Derived (assessment phase helpers, unchanged) ──────────────────────────
   const section      = SECTIONS[currentSection]!;
@@ -432,6 +446,11 @@ export function DemoExperience() {
     setRec(null);
     setIsSample(false);
     setLastScenario(null);
+    setSigExpanded(null);
+    setWhyOpen(true);
+    setSimFocus(0);
+    setSimGoal(0);
+    setSimCapacity(0);
   }
 
   function loadSample() {
@@ -471,45 +490,77 @@ export function DemoExperience() {
     }
   }
 
-  // ── INTRO (unchanged) ───────────────────────────────────────────────────────
+  // ── INTRO ───────────────────────────────────────────────────────────────────
   if (phase === "intro") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-sm text-indigo-300">
-          <FlaskConical className="h-4 w-4" /> Decision Intelligence Assessment
+          <FlaskConical className="h-4 w-4" aria-hidden="true" />
+          Decision Intelligence Assessment
         </div>
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">ICF Demo Assessment</h1>
+        <h1 className="text-3xl font-bold text-white sm:text-4xl">
+          ICF Decision Intelligence Assessment
+        </h1>
         <p className="mt-4 text-slate-400 leading-relaxed">
           12 questions across three domains — Mind, Goal and Body / Capacity.
           Takes approximately 3 minutes. No data is sent anywhere.
         </p>
-        <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
+
+        {/* Domain overview */}
+        <div
+          className="mt-8 grid gap-4 text-left sm:grid-cols-3"
+          role="list"
+          aria-label="Assessment domains"
+        >
           {SECTIONS.map(s => {
             const Icon = s.icon;
             return (
-              <div key={s.id} className={cn("rounded-xl border p-4", s.bg, s.border)}>
-                <Icon className={cn("h-5 w-5 mb-2", s.color)} />
+              <div
+                key={s.id}
+                role="listitem"
+                className={cn("rounded-xl border p-4", s.bg, s.border)}
+              >
+                <Icon className={cn("h-5 w-5 mb-2", s.color)} aria-hidden="true" />
                 <p className={cn("font-semibold text-sm", s.color)}>{s.label}</p>
                 <p className="mt-1 text-xs text-slate-400">4 questions</p>
               </div>
             );
           })}
         </div>
-        <div className="mt-8 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-left text-sm text-amber-200">
-          <AlertTriangle className="mb-2 h-4 w-4 text-amber-400" />
-          This is a decision-support prototype. It does not provide medical diagnosis,
-          treatment or emergency mental-health services.
+
+        {/* Trust & Safety notice */}
+        <div
+          role="note"
+          className="mt-8 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-left text-sm text-amber-200"
+        >
+          <AlertTriangle className="mb-2 h-4 w-4 text-amber-400" aria-hidden="true" />
+          <strong className="font-semibold">Decision support — not a diagnosis.</strong>{" "}
+          This assessment is intended to support human decision-making and should
+          not be interpreted as a medical or psychological diagnosis. It does not
+          provide treatment, therapy or emergency mental-health services.
         </div>
+
+        {/* CTAs */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button onClick={() => setPhase("assessment")}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-slate-950 hover:bg-slate-200">
-            Start assessment <ArrowRight className="h-4 w-4" />
+          <button
+            onClick={() => setPhase("assessment")}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-slate-950 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            aria-label="Begin the 12-question assessment"
+          >
+            Start assessment <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
-          <button onClick={loadSample}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-8 py-3 text-sm font-medium text-slate-300 hover:bg-white/10">
-            <FlaskConical className="h-4 w-4" /> Load sample profile
+          <button
+            onClick={loadSample}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-600 px-8 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+            aria-label="Load a pre-filled sample profile and skip directly to the dashboard"
+          >
+            <PlayCircle className="h-4 w-4" aria-hidden="true" />
+            Demo Mode — Sample Profile
           </button>
         </div>
+        <p className="mt-4 text-xs text-slate-600">
+          Demo Mode loads a representative sample — clearly labelled throughout.
+        </p>
       </div>
     );
   }
@@ -660,23 +711,38 @@ export function DemoExperience() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8">
 
-        {/* Sample data banner */}
+        {/* Demo Mode / Sample data banner */}
         {isSample && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-300">
-            <FlaskConical className="h-4 w-4 flex-shrink-0" />
-            <span>This is <strong>sample data</strong> — not a real assessment result. Run your own for accurate scores.</span>
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-6 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200"
+          >
+            <PlayCircle className="h-5 w-5 flex-shrink-0 text-amber-400 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="font-semibold text-amber-300">Demo Mode — Sample Data</p>
+              <p className="mt-0.5 text-xs">
+                This dashboard displays a pre-loaded representative profile. Scores, reasoning and the report are all live — generated from the sample answers in real time. Start your own assessment for personalised results.
+              </p>
+            </div>
           </div>
         )}
 
         {/* Header */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-indigo-400 font-medium">ICF Decision Intelligence</p>
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">Your Assessment Results</h1>
+            <p className="text-sm font-medium text-indigo-400">ICF Decision Intelligence</p>
+            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+              {isSample ? "Sample Assessment Results" : "Your Assessment Results"}
+            </h1>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleRestart} className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:bg-slate-800">
-              <RotateCcw className="h-3.5 w-3.5" /> Restart
+            <button
+              onClick={handleRestart}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:bg-slate-800"
+              aria-label="Restart and take a new assessment"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Restart
             </button>
             <button onClick={() => setPhase("report")} className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
               Generate report →
@@ -793,6 +859,10 @@ export function DemoExperience() {
             <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Recommended next action</p>
             <p className="text-white font-medium">{rec.nextAction}</p>
           </div>
+          {/* Trust disclaimer — inline on recommendation */}
+          <p className="mt-3 text-xs text-slate-600 leading-relaxed">
+            This recommendation is intended to support human decision-making and should not be interpreted as a medical or psychological diagnosis. Always apply professional judgement.
+          </p>
         </div>
 
         {/* 3. Why this recommendation? */}
@@ -1562,32 +1632,49 @@ export function DemoExperience() {
     const rptReasoning  = buildReasoningSteps(scores, rec);
     return (
       <div className="mx-auto max-w-3xl px-4 py-8">
+        {/* Report toolbar — hidden when printing */}
         <div className="mb-6 flex items-center justify-between print:hidden">
-          <button onClick={() => setPhase("dashboard")} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white">
-            <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <button
+            onClick={() => setPhase("dashboard")}
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white"
+            aria-label="Return to dashboard"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to dashboard
           </button>
-          <button onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
-            <Printer className="h-4 w-4" /> Print / Save as PDF
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
+            aria-label="Print or save this report as PDF"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" /> Print / Save as PDF
           </button>
         </div>
 
-        <div id="icf-report" className="rounded-2xl border border-slate-700 bg-slate-900 p-8 text-slate-200 print:border-0 print:bg-white print:text-black">
+        <div
+          id="icf-report"
+          className="rounded-2xl border border-slate-700 bg-slate-900 p-8 text-slate-200 print:border-0 print:bg-white print:p-0 print:text-black"
+        >
           <div className="border-b border-slate-700 pb-6 mb-6 print:border-slate-300">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-widest text-indigo-400 print:text-indigo-600 mb-1">ICF AI Copilot</p>
-                <h1 className="text-2xl font-bold text-white print:text-black">Decision Intelligence Report</h1>
+                <p className="text-xs uppercase tracking-widest text-indigo-400 print:text-indigo-700 mb-1">
+                  ICF AI Copilot — Integrative Cognitive Framework
+                </p>
+                <h1 className="text-2xl font-bold text-white print:text-black">
+                  Decision Intelligence Report
+                </h1>
               </div>
               {isSample && (
-                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs text-amber-300 print:text-amber-700">Sample data</span>
+                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs text-amber-300 print:border-amber-400 print:text-amber-800">
+                  Demo Mode — Sample Data
+                </span>
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-400 print:text-slate-600">
               <span>Date: {today}</span>
-              <span>Scope: Mind · Goal · Body/Capacity</span>
+              <span>Scope: Mind · Goal · Body / Capacity (MVP)</span>
               <span>Pattern: {rec.pattern}</span>
-              <span className="font-mono text-indigo-400 print:text-indigo-600">{profileCode}</span>
+              <span className="font-mono text-indigo-400 print:text-indigo-700">{profileCode}</span>
             </div>
           </div>
 
@@ -1864,16 +1951,18 @@ export function DemoExperience() {
           </section>
 
           <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 print:border-amber-300 print:bg-amber-50">
-            <p className="text-xs text-amber-300 print:text-amber-700 leading-relaxed">
-              <strong>Safety disclaimer:</strong> ICF AI Copilot is a decision-support and human-development tool.
-              It does not provide medical diagnosis, treatment or emergency mental-health services.
-              If you are in distress, please contact a qualified professional.
+            <p className="text-xs text-amber-300 print:text-amber-800 leading-relaxed">
+              <strong>Decision support — not a diagnosis.</strong>{" "}
+              ICF AI Copilot is a decision-support and human-development tool. This report is intended
+              to support human decision-making and should not be interpreted as a medical or psychological
+              diagnosis. It does not provide treatment, therapy or emergency mental-health services.
+              If you are experiencing distress, please contact a qualified professional.
             </p>
           </div>
 
           <div className="mt-8 border-t border-slate-700 pt-4 print:border-slate-300 text-xs text-slate-600">
-            <p>ICF AI Copilot — Demo Prototype · {profileCode} · Generated {today}</p>
-            <p>Designed for integration with IBM watsonx.ai, Granite and enterprise AI governance.</p>
+            <p>ICF AI Copilot — Integrative Cognitive Framework · {profileCode} · Generated {today}</p>
+            <p className="mt-1">Designed for integration with IBM watsonx.ai, Granite and enterprise AI governance.</p>
           </div>
         </div>
       </div>

@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function SignUpPage(){return <main className="flex min-h-screen items-center justify-center p-6"><div className="max-w-md rounded-2xl border p-8 text-center"><h1 className="text-2xl font-bold">Prototype mode</h1><p className="mt-3 text-muted-foreground">Account creation will be enabled after the demo stage.</p><Link className="mt-6 inline-block rounded-lg bg-primary px-5 py-3 text-primary-foreground" href="/dashboard">Explore demo</Link></div></main>}

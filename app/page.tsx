@@ -1,62 +1,73 @@
 import Link from "next/link";
 import {
-  ArrowRight, Brain, Compass, Network, ShieldCheck,
-  Target, Zap, Layers, GitBranch, BarChart3, PlayCircle,
-  Lock, CheckCircle2, Activity, FileText,
+  Brain, Compass, Network, ShieldCheck, Target, Zap,
+  GitBranch, BarChart3, PlayCircle, ArrowRight,
+  Activity, Layers, Lock, TrendingUp, FileText,
+  CheckCircle2, AlertTriangle,
 } from "lucide-react";
 
-// ── Static data ──────────────────────────────────────────────────────────────
+// ── Domain colour system (persistent across the whole app) ───────────────────
+const DOMAIN_COLORS: Record<string, string> = {
+  mind:     "#60a5fa",   // blue-400
+  goal:     "#4ade80",   // green-400
+  body:     "#fb923c",   // orange-400
+  language: "#2dd4bf",   // teal-400
+  scenario: "#a78bfa",   // purple-400
+  global:   "#fbbf24",   // gold/amber-400
+};
 
-const NAV_LINKS = [
-  { label: "Methodology",  href: "#methodology" },
-  { label: "Assessment",   href: "/demo" },
-  { label: "Framework",    href: "#framework" },
-  { label: "Demo",         href: "/demo?mode=demo" },
+// ── Static sample data (matches SAMPLE_ANSWERS scoring) ──────────────────────
+const SAMPLE = {
+  mind:             62,
+  goal:             75,
+  body:             44,
+  decisionReadiness: 65,
+  decisionConfidence:72,
+  explainability:   88,
+  riskLevel:        "Moderate" as const,
+  confidenceLevel:  "High" as const,
+  strongestSignal:  "Goal (75/100)",
+  primaryConstraint:"Body / Capacity (44/100)",
+  pattern:          "P3",
+  recommendation:   "Protect goal momentum while restoring capacity before expanding commitments.",
+  nextAction:       "Schedule a structured recovery window; defer any non-critical decisions for 48–72 hours.",
+};
+
+const DOMAINS_LIST = [
+  { id: "mind",     label: "Mind",     score: SAMPLE.mind, available: true  },
+  { id: "goal",     label: "Goal",     score: SAMPLE.goal, available: true  },
+  { id: "body",     label: "Body",     score: SAMPLE.body, available: true  },
+  { id: "language", label: "Language", score: null,         available: false },
+  { id: "scenario", label: "Scenario", score: null,         available: false },
+  { id: "global",   label: "Global",   score: null,         available: false },
 ];
 
-const METRICS = [
-  { value: "6",    label: "ICF Domains",          sub: "Integrative model" },
-  { value: "12",   label: "Questions",             sub: "3 min assessment" },
-  { value: "5",    label: "Decision Patterns",     sub: "Deterministic logic" },
-  { value: "100%", label: "Explainability",        sub: "No black box" },
-  { value: "0",    label: "External APIs",         sub: "Privacy first" },
+const REASONING_STEPS = [
+  { n: 1, stage: "Signal Extraction",  summary: "3 domains assessed",          detail: "Mind 62 · Goal 75 · Body 44 — 12 questions answered." },
+  { n: 2, stage: "Score Normalisation",summary: "0–100 scale applied",          detail: "Reverse-scored items corrected. Composite indices computed." },
+  { n: 3, stage: "Cross-domain Logic", summary: "Tension identified",           detail: "Goal clarity is high but capacity is low — scope risk pattern." },
+  { n: 4, stage: "Pattern Matching",   summary: "Pattern P3 selected",          detail: "5 deterministic patterns evaluated. P3 matched on ≥2 criteria." },
+  { n: 5, stage: "Recommendation",     summary: "Protect momentum",             detail: "Reduce scope; restore capacity before expanding commitments." },
+  { n: 6, stage: "Next Action",        summary: "48–72 hr recovery window",     detail: "Defer non-critical decisions. Structured rest is the leverage point." },
 ];
 
-const DOMAINS = [
-  { name: "Mind",     icon: Brain,      color: "text-blue-400",   border: "border-blue-400/25",   bg: "rgba(59,130,246,0.06)",  desc: "Cognitive clarity, concentration, mental load, emotional regulation.",        available: true  },
-  { name: "Goal",     icon: Target,     color: "text-green-400",  border: "border-green-400/25",  bg: "rgba(34,197,94,0.06)",   desc: "Goal clarity, personal importance, confidence, next-step visibility.",         available: true  },
-  { name: "Body",     icon: Zap,        color: "text-amber-400",  border: "border-amber-400/25",  bg: "rgba(245,158,11,0.06)",  desc: "Energy, recovery, workload tolerance, sustained attention capacity.",          available: true  },
-  { name: "Language", icon: ShieldCheck,color: "text-violet-400", border: "border-violet-400/20", bg: "rgba(139,92,246,0.04)",  desc: "Communication patterns, framing quality, narrative coherence signals.",        available: false },
-  { name: "Scenario", icon: Compass,    color: "text-sky-400",    border: "border-sky-400/20",    bg: "rgba(56,189,248,0.04)",  desc: "Risk scenario modelling, decision branching, consequence mapping.",           available: false },
-  { name: "Global",   icon: Network,    color: "text-teal-400",   border: "border-teal-400/20",   bg: "rgba(20,184,166,0.04)",  desc: "System-level awareness, cultural context, long-range impact assessment.",     available: false },
-];
+// ── Large Human Development Graph ────────────────────────────────────────────
+function DashboardGraph() {
+  const R = 150;
+  const cx = 240; const cy = 240;
 
-const CAPABILITIES = [
-  { icon: Brain,       label: "Decision Intelligence",        desc: "Structured reasoning across cognitive, goal and capacity domains." },
-  { icon: GitBranch,   label: "Human Development Graph",      desc: "Six-domain radial model that visualises your current development profile." },
-  { icon: Activity,    label: "Explainability Engine",        desc: "Every recommendation ships with its reasoning, evidence and limitations." },
-  { icon: Layers,      label: "Decision Twin Simulator",      desc: "Explore how signal changes shift decision readiness — before acting." },
-  { icon: BarChart3,   label: "Signal Importance",            desc: "See which signals drove the output and by how much." },
-  { icon: FileText,    label: "Executive Report",             desc: "Print-ready PDF-quality report with complete decision analysis." },
-];
-
-// ── Hero SVG — Human Development Graph (static demo, 6 nodes) ───────────────
-
-function HeroGraph() {
-  const R = 120;
-  const cx = 200; const cy = 200;
   const nodes = [
-    { label: "Mind",     angle: -90,  score: 72,  color: "#60a5fa", available: true  },
-    { label: "Language", angle: -30,  score: null, color: "#8b5cf6", available: false },
-    { label: "Global",   angle:  30,  score: null, color: "#14b8a6", available: false },
-    { label: "Body",     angle:  90,  score: 48,  color: "#f59e0b", available: true  },
-    { label: "Scenario", angle: 150,  score: null, color: "#38bdf8", available: false },
-    { label: "Goal",     angle: 210,  score: 81,  color: "#22c55e", available: true  },
+    { id: "mind",     label: "Mind",     angle: -90,  score: SAMPLE.mind },
+    { id: "language", label: "Language", angle: -30,  score: null },
+    { id: "global",   label: "Global",   angle:  30,  score: null },
+    { id: "body",     label: "Body",     angle:  90,  score: SAMPLE.body },
+    { id: "scenario", label: "Scenario", angle: 150,  score: null },
+    { id: "goal",     label: "Goal",     angle: 210,  score: SAMPLE.goal },
   ];
 
-  const toXY = (angle: number, radius: number) => ({
-    x: cx + radius * Math.cos((angle * Math.PI) / 180),
-    y: cy + radius * Math.sin((angle * Math.PI) / 180),
+  const toXY = (angle: number, r: number) => ({
+    x: cx + r * Math.cos((angle * Math.PI) / 180),
+    y: cy + r * Math.sin((angle * Math.PI) / 180),
   });
 
   const assessed = nodes.filter(n => n.score !== null);
@@ -65,98 +76,110 @@ function HeroGraph() {
     return `${pt.x},${pt.y}`;
   }).join(" ");
 
-  const nodePositions = nodes.map(n => ({ ...n, ...toXY(n.angle, R) }));
+  const nodePos = nodes.map(n => ({ ...n, ...toXY(n.angle, R) }));
 
   return (
     <svg
-      viewBox="0 0 400 400"
-      className="w-full max-w-[420px]"
-      aria-label="ICF Human Development Graph — six-domain model"
+      viewBox="0 0 480 480"
+      className="w-full max-w-[480px]"
+      aria-label="ICF Human Development Graph — sample profile"
       role="img"
     >
       <defs>
-        <radialGradient id="hero-poly-fill" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="rgba(99,102,241,0.3)" />
-          <stop offset="100%" stopColor="rgba(99,102,241,0.04)" />
+        <radialGradient id="db-poly-fill" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="rgba(99,102,241,0.28)" />
+          <stop offset="100%" stopColor="rgba(99,102,241,0.03)" />
         </radialGradient>
-        <filter id="hero-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
+        <filter id="db-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3.5" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
-        <filter id="hero-glow-sm" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
+        <filter id="db-glow-sm" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
 
-      {/* Concentric rings */}
+      {/* Rings */}
       {[0.25, 0.5, 0.75, 1].map((r, i) => (
         <circle key={r} cx={cx} cy={cy} r={R * r}
           fill="none"
-          stroke={i === 3 ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.07)"}
-          strokeWidth={i === 3 ? 1.5 : 0.75}
-          strokeDasharray={i < 3 ? "3 5" : undefined}
+          stroke={i === 3 ? "rgba(99,102,241,0.22)" : "rgba(99,102,241,0.07)"}
+          strokeWidth={i === 3 ? "1.5" : "0.75"}
+          strokeDasharray={i < 3 ? "4 6" : undefined}
         />
+      ))}
+
+      {/* Ring labels (25 / 50 / 75 / 100) */}
+      {[25, 50, 75, 100].map(v => (
+        <text key={v}
+          x={cx + 4} y={cy - R * (v / 100) + 4}
+          fontSize="8" fill="rgba(99,102,241,0.35)"
+          style={{ fontFamily: "system-ui,sans-serif" }}>
+          {v}
+        </text>
       ))}
 
       {/* Spokes */}
-      {nodePositions.map(n => (
-        <line key={n.label}
-          x1={cx} y1={cy} x2={n.x} y2={n.y}
-          stroke="rgba(99,102,241,0.12)" strokeWidth="0.75"
-        />
+      {nodePos.map(n => (
+        <line key={n.id} x1={cx} y1={cy} x2={n.x} y2={n.y}
+          stroke="rgba(99,102,241,0.1)" strokeWidth="0.75" />
       ))}
 
-      {/* Animated pulse ring on outer circle */}
+      {/* Outer pulse ring */}
       <circle cx={cx} cy={cy} r={R}
-        fill="none" stroke="rgba(99,102,241,0.15)" strokeWidth="1"
-        style={{ animation: "icf-pulse-glow 4s ease-in-out infinite" }}
+        fill="none" stroke="rgba(99,102,241,0.12)" strokeWidth="1"
+        style={{ animation: "icf-pulse-glow 5s ease-in-out infinite" }}
       />
 
-      {/* Filled polygon — assessed domains */}
+      {/* Filled polygon */}
       <polygon points={polyPoints}
-        fill="url(#hero-poly-fill)"
-        stroke="rgba(99,102,241,0.6)" strokeWidth="1.5" strokeLinejoin="round"
-        style={{ filter: "drop-shadow(0 0 8px rgba(99,102,241,0.25))" }}
+        fill="url(#db-poly-fill)"
+        stroke="rgba(99,102,241,0.55)" strokeWidth="1.5" strokeLinejoin="round"
+        style={{ filter: "drop-shadow(0 0 10px rgba(99,102,241,0.22))" }}
       />
 
       {/* Nodes */}
-      {nodePositions.map(n => {
+      {nodePos.map(n => {
+        const col = DOMAIN_COLORS[n.id] ?? "#64748b";
         const isAssessed = n.score !== null;
         const scorePt = isAssessed ? toXY(n.angle, (n.score! / 100) * R) : null;
 
-        // label offset
-        const lx = n.x + (n.x < cx - 8 ? -16 : n.x > cx + 8 ? 16 : 0);
-        const ly = n.y + (n.y < cy - 8 ? -16 : n.y > cy + 8 ? 20 : 0);
-        const anchor = n.x < cx - 8 ? "end" : n.x > cx + 8 ? "start" : "middle";
+        const lx = n.x + (n.x < cx - 10 ? -18 : n.x > cx + 10 ? 18 : 0);
+        const ly = n.y + (n.y < cy - 10 ? -18 : n.y > cy + 10 ? 22 : 0);
+        const anchor = n.x < cx - 10 ? "end" : n.x > cx + 10 ? "start" : "middle";
 
         return (
-          <g key={n.label}>
-            {isAssessed && (
+          <g key={n.id}>
+            {isAssessed ? (
               <>
-                <circle cx={n.x} cy={n.y} r={14} fill={n.color} opacity="0.07" />
-                <circle cx={n.x} cy={n.y} r={7} fill={n.color} stroke={n.color} strokeWidth="1.5"
-                  filter="url(#hero-glow-sm)" />
+                {/* Halo */}
+                <circle cx={n.x} cy={n.y} r={16} fill={col} opacity="0.08" />
+                {/* Anchor node */}
+                <circle cx={n.x} cy={n.y} r={8} fill={col} stroke={col} strokeWidth="1.5"
+                  filter="url(#db-glow-sm)" />
+                {/* Score dot */}
                 {scorePt && (
-                  <circle cx={scorePt.x} cy={scorePt.y} r={4.5}
-                    fill={n.color} opacity="0.9" filter="url(#hero-glow-sm)" />
+                  <circle cx={scorePt.x} cy={scorePt.y} r={5}
+                    fill={col} opacity="0.9" filter="url(#db-glow-sm)" />
                 )}
-                <text x={lx} y={ly} textAnchor={anchor} fontSize="11.5" fontWeight="600"
-                  fill="#e2e8f0" style={{ fontFamily: "system-ui,sans-serif" }}>
+                {/* Domain label */}
+                <text x={lx} y={ly} textAnchor={anchor} fontSize="12" fontWeight="600"
+                  fill={col} style={{ fontFamily: "system-ui,sans-serif" }}>
                   {n.label}
                 </text>
+                {/* Score value */}
                 <text x={lx}
-                  y={n.y + (n.y < cy - 8 ? -28 : n.y > cy + 8 ? 33 : ly - n.y + 16)}
-                  textAnchor={anchor} fontSize="10" fontWeight="700"
-                  fill={n.color} opacity="0.95" style={{ fontFamily: "system-ui,sans-serif" }}>
+                  y={n.y + (n.y < cy - 10 ? -32 : n.y > cy + 10 ? 38 : ly - n.y + 18)}
+                  textAnchor={anchor} fontSize="11" fontWeight="700"
+                  fill={col} opacity="0.95" style={{ fontFamily: "system-ui,sans-serif" }}>
                   {n.score}
                 </text>
               </>
-            )}
-            {!isAssessed && (
+            ) : (
               <>
-                <circle cx={n.x} cy={n.y} r={4} fill="#1e293b" stroke="#334155" strokeWidth="1.2" />
-                <text x={lx} y={ly} textAnchor={anchor} fontSize="10.5" fontWeight="400"
+                <circle cx={n.x} cy={n.y} r={5} fill="#1e293b" stroke="#334155" strokeWidth="1.2" />
+                <text x={lx} y={ly} textAnchor={anchor} fontSize="11" fontWeight="400"
                   fill="#475569" style={{ fontFamily: "system-ui,sans-serif" }}>
                   {n.label}
                 </text>
@@ -166,331 +189,416 @@ function HeroGraph() {
         );
       })}
 
-      {/* Centre mark */}
-      <circle cx={cx} cy={cy} r={22} fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.3)" strokeWidth="1" />
-      <text x={cx} y={cy - 5} textAnchor="middle" fontSize="9" fill="#818cf8" fontWeight="800"
+      {/* Centre */}
+      <circle cx={cx} cy={cy} r={26} fill="rgba(99,102,241,0.1)"
+        stroke="rgba(99,102,241,0.28)" strokeWidth="1" />
+      <text x={cx} y={cy - 5} textAnchor="middle" fontSize="9.5" fill="#818cf8" fontWeight="800"
         style={{ letterSpacing: "0.1em", fontFamily: "system-ui,sans-serif" }}>ICF</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fontSize="7.5" fill="rgba(99,102,241,0.5)"
+      <text x={cx} y={cy + 8} textAnchor="middle" fontSize="8" fill="rgba(99,102,241,0.45)"
         style={{ letterSpacing: "0.07em", fontFamily: "system-ui,sans-serif" }}>ENGINE</text>
     </svg>
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Score colour ─────────────────────────────────────────────────────────────
+function scoreColor(v: number): string {
+  if (v >= 65) return "#4ade80";
+  if (v >= 40) return "#fb923c";
+  return "#f87171";
+}
 
+// ── Risk badge ───────────────────────────────────────────────────────────────
+function RiskBadge({ level }: { level: "Low" | "Moderate" | "High" }) {
+  const cfg = {
+    Low:      { text: "text-green-400",  border: "border-green-400/30",  bg: "rgba(74,222,128,0.07)" },
+    Moderate: { text: "text-orange-400", border: "border-orange-400/30", bg: "rgba(251,146,60,0.07)" },
+    High:     { text: "text-red-400",    border: "border-red-400/30",    bg: "rgba(248,113,113,0.07)" },
+  }[level];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${cfg.text} ${cfg.border}`}
+      style={{ background: cfg.bg }}>
+      {level === "Low" ? <CheckCircle2 className="h-3 w-3" /> :
+       level === "Moderate" ? <AlertTriangle className="h-3 w-3" /> :
+       <AlertTriangle className="h-3 w-3" />}
+      Risk: {level}
+    </span>
+  );
+}
+
+// ── KPI card ─────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-800 p-5"
+      style={{ background: "rgba(15,23,42,0.7)" }}>
+      <p className="text-xs font-medium uppercase tracking-widest text-slate-500 mb-2">{label}</p>
+      <p className="text-3xl font-bold tabular-nums" style={{ color: color ?? "#fff" }}>{value}</p>
+      {sub && <p className="mt-1 text-xs text-slate-600">{sub}</p>}
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-slate-950 text-white" style={{ background: "#070d1a" }}>
 
-      {/* ── Sticky navigation ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.06]"
-        style={{ background: "rgba(2,6,23,0.88)", backdropFilter: "blur(20px) saturate(160%)" }}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
+      {/* ── Top navigation ────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 border-b border-white/[0.05]"
+        style={{ background: "rgba(7,13,26,0.92)", backdropFilter: "blur(16px)" }}>
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-3 lg:px-8">
+
           {/* Wordmark */}
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}>
-              <span className="text-xs font-black text-white tracking-tight">ICF</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-md"
+              style={{ background: "linear-gradient(135deg,#4338ca,#6366f1)" }}>
+              <span className="text-[10px] font-black text-white tracking-tight">ICF</span>
             </div>
-            <div className="hidden sm:flex flex-col leading-none">
-              <span className="text-sm font-bold text-white">ICF AI Copilot</span>
-              <span className="text-xs text-slate-500">Decision Intelligence</span>
-            </div>
+            <span className="text-sm font-semibold text-white">ICF AI Copilot</span>
+            <span className="hidden md:inline-block h-4 w-px bg-slate-700" />
+            <span className="hidden md:inline text-xs text-slate-500">Integrative Cognitive Framework</span>
           </div>
 
-          {/* Nav links */}
-          <nav aria-label="Primary navigation" className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(link => (
-              <Link key={link.label} href={link.href}
-                className="rounded-lg px-4 py-2 text-sm text-slate-400 transition-colors hover:bg-white/[0.05] hover:text-white">
-                {link.label}
+          {/* Nav */}
+          <nav aria-label="Workspace navigation" className="hidden md:flex items-center gap-0.5">
+            {[
+              { label: "Workspace",  href: "/",            active: true  },
+              { label: "Assessment", href: "/demo",         active: false },
+              { label: "Framework",  href: "#domains",      active: false },
+            ].map(item => (
+              <Link key={item.label} href={item.href}
+                className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                  item.active
+                    ? "bg-white/[0.06] text-white font-medium"
+                    : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                }`}>
+                {item.label}
               </Link>
             ))}
           </nav>
 
-          {/* CTA */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex rounded-full border border-indigo-400/30 px-2.5 py-1 text-xs text-indigo-300"
-              style={{ background: "rgba(99,102,241,0.08)" }}>
-              IBM AI Build
-            </span>
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <Link href="/demo?mode=demo"
+              className="hidden sm:flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:border-slate-600 hover:text-white">
+              <PlayCircle className="h-3.5 w-3.5" />
+              Sample Profile
+            </Link>
             <Link href="/demo"
-              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:brightness-110"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 12px rgba(99,102,241,0.3)" }}>
-              Begin Assessment <ArrowRight className="h-3.5 w-3.5" />
+              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white transition-all hover:brightness-110"
+              style={{ background: "rgba(99,102,241,0.85)", boxShadow: "0 0 0 1px rgba(99,102,241,0.5)" }}>
+              Begin Assessment
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ── Hero — full viewport ───────────────────────────────────────────── */}
-      <section className="relative flex min-h-[calc(100vh-56px)] items-center overflow-hidden"
-        aria-labelledby="hero-heading">
-        {/* Background layers */}
-        <div className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 80% 60% at 60% 40%,rgba(99,102,241,0.12) 0%,transparent 70%)" }} />
-        <div className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 50% 40% at 10% 80%,rgba(59,130,246,0.06) 0%,transparent 60%)" }} />
-        {/* Subtle grid */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage: "linear-gradient(rgba(99,102,241,1) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,1) 1px,transparent 1px)", backgroundSize: "64px 64px" }} />
+      {/* ── Main workspace ────────────────────────────────────────────────── */}
+      <main className="mx-auto max-w-[1440px] px-6 py-6 lg:px-8">
 
-        <div className="relative mx-auto w-full max-w-7xl px-6 py-20 lg:px-10">
-          <div className="grid items-center gap-16 lg:grid-cols-2">
+        {/* ── Workspace title bar ───────────────────────────────────────── */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold text-white">Decision Intelligence Workspace</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Sample profile · ICF-M62-G75-B44-RM · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <RiskBadge level={SAMPLE.riskLevel} />
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 px-3 py-1 text-xs text-amber-300"
+              style={{ background: "rgba(245,158,11,0.06)" }}>
+              Sample data · Begin assessment for your profile
+            </span>
+          </div>
+        </div>
 
-            {/* LEFT — copy */}
-            <div className="max-w-xl">
-              {/* Category badge */}
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-1.5 text-sm text-indigo-300"
-                style={{ background: "rgba(99,102,241,0.08)" }}>
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                Explainable Decision Intelligence Platform
+        {/* ── Primary grid: Graph + KPIs ────────────────────────────────── */}
+        <div className="mb-5 grid gap-5 xl:grid-cols-[480px_1fr]">
+
+          {/* Human Development Graph — centrepiece */}
+          <div className="rounded-xl border border-slate-800 p-6"
+            style={{ background: "rgba(10,16,32,0.8)" }}
+            aria-label="Human Development Graph panel">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-4 w-4 text-indigo-400" aria-hidden="true" />
+                <h2 className="text-sm font-semibold text-white">Human Development Graph</h2>
               </div>
+              <span className="text-xs text-slate-600">3 / 6 domains active</span>
+            </div>
 
-              {/* Headline */}
-              <h1 id="hero-heading" className="text-5xl font-bold leading-[1.1] tracking-tight text-white lg:text-6xl">
-                Know yourself.
-                <br />
-                Decide with
-                <br />
-                <span style={{ background: "linear-gradient(90deg,#818cf8 0%,#6366f1 50%,#a78bfa 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                  clarity.
-                </span>
-              </h1>
+            <div className="flex justify-center">
+              <DashboardGraph />
+            </div>
 
-              {/* Sub-headline */}
-              <p className="mt-6 text-lg text-slate-400 leading-relaxed">
-                ICF AI Copilot maps your cognitive, goal and capacity signals
-                into a transparent decision readiness score — with full
-                reasoning, no black box.
-              </p>
+            {/* Domain legend */}
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              {DOMAINS_LIST.map(d => (
+                <div key={d.id} className="flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ background: d.available ? (DOMAIN_COLORS[d.id] ?? "#64748b") : "#334155" }} />
+                  <span className={d.available ? "text-slate-300" : "text-slate-600"}>
+                    {d.label}
+                    {d.available && d.score !== null && (
+                      <span className="ml-1 tabular-nums font-semibold"
+                        style={{ color: DOMAIN_COLORS[d.id] }}>{d.score}</span>
+                    )}
+                    {!d.available && <span className="ml-1 text-slate-700">—</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-              {/* Trust badges */}
-              <div className="mt-6 flex flex-wrap gap-2">
-                {["Deterministic logic", "Zero external APIs", "Full explainability", "IBM watsonx.ai ready"].map(b => (
-                  <span key={b} className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">
-                    <CheckCircle2 className="h-3 w-3 text-green-400" />
+          {/* Right column — KPIs + Decision Summary */}
+          <div className="flex flex-col gap-4">
+
+            {/* KPI row */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <KpiCard label="Decision Readiness" value={SAMPLE.decisionReadiness}
+                color={scoreColor(SAMPLE.decisionReadiness)} sub="out of 100" />
+              <KpiCard label="Decision Confidence" value={SAMPLE.decisionConfidence}
+                color={scoreColor(SAMPLE.decisionConfidence)} sub="Signal consistency" />
+              <KpiCard label="Explainability" value={`${SAMPLE.explainability}%`}
+                color="#818cf8" sub="Fully verifiable" />
+              <div className="rounded-xl border border-slate-800 p-5"
+                style={{ background: "rgba(15,23,42,0.7)" }}>
+                <p className="text-xs font-medium uppercase tracking-widest text-slate-500 mb-2">Pattern</p>
+                <p className="text-3xl font-bold text-indigo-400 tabular-nums">{SAMPLE.pattern}</p>
+                <p className="mt-1 text-xs text-slate-600">Recommendation</p>
+              </div>
+            </div>
+
+            {/* Domain scores strip */}
+            <div className="rounded-xl border border-slate-800 p-5"
+              style={{ background: "rgba(15,23,42,0.7)" }}>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500 mb-4">Domain Scores</p>
+              <div className="space-y-3">
+                {DOMAINS_LIST.filter(d => d.available && d.score !== null).map(d => (
+                  <div key={d.id}>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full"
+                          style={{ background: DOMAIN_COLORS[d.id] ?? "#64748b" }} />
+                        <span className="text-slate-300 font-medium">{d.label}</span>
+                      </div>
+                      <span className="font-bold tabular-nums"
+                        style={{ color: DOMAIN_COLORS[d.id] }}>{d.score}</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full overflow-hidden"
+                      style={{ background: "rgba(30,41,59,0.9)" }}>
+                      <div className="h-1.5 rounded-full transition-all duration-700"
+                        style={{
+                          width: `${d.score}%`,
+                          background: DOMAIN_COLORS[d.id],
+                          boxShadow: `0 0 6px ${DOMAIN_COLORS[d.id]}60`,
+                        }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-800/80">
+                <div className="flex gap-4 text-xs text-slate-500">
+                  <span>Strongest: <span className="text-green-400 font-medium">{SAMPLE.strongestSignal}</span></span>
+                  <span>Constraint: <span className="text-orange-400 font-medium">{SAMPLE.primaryConstraint}</span></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Decision Summary */}
+            <div className="rounded-xl border border-indigo-500/20 p-5 flex-1"
+              style={{ background: "rgba(99,102,241,0.05)" }}>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500 mb-3">Decision Summary</p>
+              <p className="text-sm font-medium text-white leading-relaxed mb-3">{SAMPLE.recommendation}</p>
+              <div className="rounded-lg border border-slate-700/60 p-3"
+                style={{ background: "rgba(15,23,42,0.5)" }}>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Recommended next action</p>
+                <p className="text-sm text-slate-200">{SAMPLE.nextAction}</p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["Deterministic logic", "Zero external APIs", "Full explainability"].map(b => (
+                  <span key={b} className="inline-flex items-center gap-1 rounded-full border border-slate-700 px-2.5 py-0.5 text-xs text-slate-500">
+                    <CheckCircle2 className="h-3 w-3 text-green-400/70" />
                     {b}
                   </span>
                 ))}
               </div>
-
-              {/* CTAs */}
-              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-                <Link href="/demo"
-                  className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 font-semibold text-white transition-all hover:brightness-110 active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 24px rgba(99,102,241,0.35)" }}>
-                  Start Assessment <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link href="/demo?mode=demo"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-700 px-8 py-3.5 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-500 hover:text-white">
-                  <PlayCircle className="h-4 w-4" />
-                  Live Demo
-                </Link>
-              </div>
-            </div>
-
-            {/* RIGHT — Human Development Graph */}
-            <div className="flex flex-col items-center justify-center" aria-hidden="true">
-              <div className="relative w-full max-w-[480px]">
-                {/* Glow behind graph */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div style={{ width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 70%)", filter: "blur(20px)" }} />
-                </div>
-                <HeroGraph />
-              </div>
-              <p className="mt-4 text-center text-xs text-slate-600 max-w-xs leading-relaxed">
-                Human Development Graph — six-domain model.
-                Mind · Goal · Body active. Language, Scenario, Global: roadmap.
-              </p>
             </div>
 
           </div>
         </div>
-      </section>
 
-      {/* ── Metrics strip ─────────────────────────────────────────────────── */}
-      <section aria-label="Platform metrics"
-        className="border-y border-white/[0.06]"
-        style={{ background: "rgba(15,23,42,0.6)" }}>
-        <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-          <div className="grid grid-cols-2 gap-px sm:grid-cols-3 lg:grid-cols-5">
-            {METRICS.map((m, i) => (
-              <div key={m.label}
-                className={`flex flex-col items-center py-6 text-center ${i < METRICS.length - 1 ? "border-r border-white/[0.05]" : ""}`}>
-                <span className="text-3xl font-bold text-white tabular-nums tracking-tight"
-                  style={{ textShadow: "0 0 24px rgba(99,102,241,0.4)" }}>
-                  {m.value}
-                </span>
-                <span className="mt-1.5 text-sm font-medium text-slate-300">{m.label}</span>
-                <span className="mt-0.5 text-xs text-slate-600">{m.sub}</span>
+        {/* ── Reasoning pipeline ────────────────────────────────────────── */}
+        <div className="mb-5 rounded-xl border border-slate-800 p-6"
+          style={{ background: "rgba(10,16,32,0.8)" }}>
+          <div className="flex items-center gap-2 mb-5">
+            <Layers className="h-4 w-4 text-indigo-400" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-white">Decision Reasoning Pipeline</h2>
+            <span className="ml-auto text-xs text-slate-600">Deterministic · Rule-based · No machine learning</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {REASONING_STEPS.map((step, i) => (
+              <div key={step.stage} className="relative rounded-lg border border-slate-700/50 p-4"
+                style={{ background: "rgba(15,23,42,0.6)" }}>
+                {/* Connector arrow for non-last items on desktop */}
+                {i < REASONING_STEPS.length - 1 && (
+                  <div className="hidden xl:block absolute -right-2 top-1/2 -translate-y-1/2 z-10">
+                    <ArrowRight className="h-3 w-3 text-slate-700" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-indigo-500/50 bg-indigo-500/15 text-[10px] font-bold text-indigo-400">
+                    {step.n}
+                  </div>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">{step.stage}</p>
+                </div>
+                <p className="text-xs font-semibold text-slate-200 mb-1 leading-snug">{step.summary}</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{step.detail}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* ── Platform capabilities ──────────────────────────────────────────── */}
-      <section id="methodology" className="py-24" aria-labelledby="capabilities-heading">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="mb-14 max-w-2xl">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-indigo-400">Platform Capabilities</p>
-            <h2 id="capabilities-heading" className="text-3xl font-bold text-white lg:text-4xl">
-              Enterprise decision intelligence,<br className="hidden lg:block" />
-              fully transparent.
-            </h2>
-            <p className="mt-4 text-slate-400 leading-relaxed">
-              Every output is backed by deterministic, rule-based logic.
-              No machine learning black box. Designed for IBM watsonx.ai integration.
-            </p>
-          </div>
+        {/* ── Bottom row: Domains + Start assessment ────────────────────── */}
+        <div className="grid gap-5 lg:grid-cols-[1fr_340px]" id="domains">
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {CAPABILITIES.map(c => {
-              const Icon = c.icon;
-              return (
-                <div key={c.label}
-                  className="group rounded-2xl border border-slate-800 p-6 transition-all duration-200 hover:border-indigo-500/40"
-                  style={{ background: "rgba(15,23,42,0.6)" }}>
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl"
-                    style={{ background: "rgba(99,102,241,0.12)" }}>
-                    <Icon className="h-5 w-5 text-indigo-400" aria-hidden="true" />
-                  </div>
-                  <h3 className="mb-2 font-semibold text-white">{c.label}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{c.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── ICF Domains grid ──────────────────────────────────────────────── */}
-      <section id="framework" className="py-24 border-t border-white/[0.05]" aria-labelledby="domains-heading">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="mb-14 max-w-2xl">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-indigo-400">Integrative Cognitive Framework</p>
-            <h2 id="domains-heading" className="text-3xl font-bold text-white lg:text-4xl">
-              Six domains of<br className="hidden lg:block" /> human development.
-            </h2>
-            <p className="mt-4 text-slate-400 leading-relaxed">
-              ICF models the full spectrum of decision-relevant human signals.
-              Three domains are active in this MVP. Three are on the product roadmap.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {DOMAINS.map(d => {
-              const Icon = d.icon;
-              return (
-                <div key={d.name}
-                  className="relative rounded-2xl border p-6 transition-all duration-200"
-                  style={{ borderColor: d.available ? d.border.replace("border-","").replace("/25","") + "40" : "rgba(255,255,255,0.05)", background: d.bg }}>
-                  {!d.available && (
-                    <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border border-slate-700/60 px-2 py-0.5 text-xs text-slate-500"
-                      style={{ background: "rgba(15,23,42,0.8)" }}>
-                      <Lock className="h-2.5 w-2.5" /> Roadmap
-                    </span>
-                  )}
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl"
-                    style={{ background: d.available ? d.bg : "rgba(30,41,59,0.4)", border: "1px solid " + (d.available ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)") }}>
-                    <Icon className={`h-5 w-5 ${d.available ? d.color : "text-slate-600"}`} aria-hidden="true" />
-                  </div>
-                  <h3 className={`mb-2 font-semibold ${d.available ? "text-white" : "text-slate-500"}`}>{d.name}</h3>
-                  <p className={`text-sm leading-relaxed ${d.available ? "text-slate-400" : "text-slate-600"}`}>{d.desc}</p>
-                  {d.available && (
-                    <div className="mt-4 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                      <span className="text-xs text-green-400 font-medium">Active</span>
+          {/* ICF Domains */}
+          <div className="rounded-xl border border-slate-800 p-6"
+            style={{ background: "rgba(10,16,32,0.8)" }}>
+            <div className="flex items-center gap-2 mb-5">
+              <GitBranch className="h-4 w-4 text-indigo-400" aria-hidden="true" />
+              <h2 className="text-sm font-semibold text-white">ICF Domains</h2>
+              <span className="ml-auto text-xs text-slate-600">Integrative Cognitive Framework</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { id: "mind",     label: "Mind",     icon: Brain,       desc: "Cognitive clarity, concentration, mental load.",         available: true  },
+                { id: "goal",     label: "Goal",     icon: Target,      desc: "Goal clarity, importance, confidence, next steps.",      available: true  },
+                { id: "body",     label: "Body",     icon: Zap,         desc: "Energy, recovery, workload, sustained attention.",       available: true  },
+                { id: "language", label: "Language", icon: ShieldCheck, desc: "Communication patterns, framing, narrative coherence.",  available: false },
+                { id: "scenario", label: "Scenario", icon: Compass,     desc: "Risk modelling, decision branching, consequences.",      available: false },
+                { id: "global",   label: "Global",   icon: Network,     desc: "System awareness, cultural context, long-range impact.", available: false },
+              ].map(d => {
+                const Icon = d.icon;
+                const col = DOMAIN_COLORS[d.id] ?? "#64748b";
+                return (
+                  <div key={d.id} className="relative rounded-lg border p-4"
+                    style={{
+                      borderColor: d.available ? `${col}25` : "rgba(255,255,255,0.04)",
+                      background:  d.available ? `${col}07` : "rgba(15,23,42,0.4)",
+                    }}>
+                    {!d.available && (
+                      <div className="absolute right-3 top-3 flex items-center gap-1 text-[10px] text-slate-600">
+                        <Lock className="h-2.5 w-2.5" /> Roadmap
+                      </div>
+                    )}
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md"
+                        style={{ background: d.available ? `${col}18` : "rgba(30,41,59,0.5)" }}>
+                        <Icon className="h-4 w-4" style={{ color: d.available ? col : "#475569" }} aria-hidden="true" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold mb-0.5" style={{ color: d.available ? col : "#475569" }}>
+                          {d.label}
+                        </p>
+                        <p className={`text-xs leading-relaxed ${d.available ? "text-slate-400" : "text-slate-600"}`}>
+                          {d.desc}
+                        </p>
+                        {d.available && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                            <span className="text-[10px] text-green-400 font-medium">Active</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── Trust section ─────────────────────────────────────────────────── */}
-      <section className="py-24 border-t border-white/[0.05]" aria-label="Trust and ethics">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="rounded-2xl border border-indigo-400/20 px-8 py-10 lg:px-12 lg:py-14"
-            style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.07),rgba(99,102,241,0.02))" }}>
-            <div className="grid items-center gap-10 lg:grid-cols-2">
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-indigo-400">Ethical AI by Design</p>
-                <h2 className="text-2xl font-bold text-white lg:text-3xl">
-                  Decision support.<br />Not a diagnosis.
-                </h2>
-                <p className="mt-4 text-slate-400 leading-relaxed text-sm">
-                  ICF AI Copilot is a structured decision-support tool.
-                  Every output includes its reasoning, evidence used, limitations
-                  and a disclaimer. No data is stored. No external APIs are called.
-                </p>
+          {/* Assessment panel */}
+          <div className="flex flex-col gap-4">
+            {/* Start assessment */}
+            <div className="rounded-xl border border-slate-800 p-6"
+              style={{ background: "rgba(10,16,32,0.8)" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="h-4 w-4 text-indigo-400" />
+                <h2 className="text-sm font-semibold text-white">Assessment</h2>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <p className="text-xs text-slate-500 leading-relaxed mb-5">
+                12 questions across Mind, Goal and Body. Takes ~3 minutes.
+                All processing is local — no data is sent anywhere.
+              </p>
+              <div className="space-y-2">
+                <Link href="/demo"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+                  style={{ background: "rgba(99,102,241,0.85)", boxShadow: "0 0 0 1px rgba(99,102,241,0.4)" }}>
+                  Begin Assessment
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <Link href="/demo?mode=demo"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 py-2.5 text-xs text-slate-400 transition-colors hover:border-slate-600 hover:text-white">
+                  <PlayCircle className="h-3.5 w-3.5" />
+                  Load Sample Profile
+                </Link>
+              </div>
+            </div>
+
+            {/* Platform capabilities */}
+            <div className="rounded-xl border border-slate-800 p-6 flex-1"
+              style={{ background: "rgba(10,16,32,0.8)" }}>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-4 w-4 text-indigo-400" />
+                <h2 className="text-sm font-semibold text-white">Capabilities</h2>
+              </div>
+              <ul className="space-y-2.5">
                 {[
-                  { icon: ShieldCheck, label: "No diagnosis",       desc: "Assessment results are decision support, not clinical judgement." },
-                  { icon: CheckCircle2, label: "Full transparency",  desc: "Every recommendation includes its logic chain." },
-                  { icon: Layers,       label: "No data stored",    desc: "All processing is client-side. Nothing is persisted." },
-                  { icon: Activity,     label: "Human-in-the-loop", desc: "The system recommends. You decide." },
-                ].map(item => {
-                  const Icon = item.icon;
+                  { icon: Brain,     label: "Decision Intelligence",  desc: "Structured deterministic reasoning" },
+                  { icon: GitBranch, label: "Human Development Graph",desc: "Six-domain radial model" },
+                  { icon: Layers,    label: "Decision Twin",          desc: "What-if signal simulator" },
+                  { icon: TrendingUp,label: "Explainability Engine",  desc: "Full reasoning transparency" },
+                  { icon: FileText,  label: "Executive Report",       desc: "Print-ready PDF analysis" },
+                ].map(c => {
+                  const Icon = c.icon;
                   return (
-                    <div key={item.label} className="rounded-xl border border-slate-700/60 p-4"
-                      style={{ background: "rgba(15,23,42,0.5)" }}>
-                      <Icon className="mb-2 h-4 w-4 text-indigo-400" aria-hidden="true" />
-                      <p className="text-sm font-semibold text-white">{item.label}</p>
-                      <p className="mt-1 text-xs text-slate-500 leading-relaxed">{item.desc}</p>
-                    </div>
+                    <li key={c.label} className="flex items-center gap-3 text-xs">
+                      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+                        style={{ background: "rgba(99,102,241,0.1)" }}>
+                        <Icon className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-300">{c.label}</span>
+                        <span className="ml-1.5 text-slate-600">{c.desc}</span>
+                      </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── CTA bar ───────────────────────────────────────────────────────── */}
-      <section className="py-24 border-t border-white/[0.05]" aria-label="Call to action">
-        <div className="mx-auto max-w-3xl px-6 text-center lg:px-10">
-          <h2 className="text-3xl font-bold text-white lg:text-4xl">
-            Ready to assess your<br className="hidden sm:block" /> decision readiness?
-          </h2>
-          <p className="mt-4 text-slate-400 leading-relaxed">
-            12 questions. 3 minutes. Full transparency. No account required.
-          </p>
-          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link href="/demo"
-              className="inline-flex items-center gap-2 rounded-full px-10 py-4 font-semibold text-white transition-all hover:brightness-110"
-              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 32px rgba(99,102,241,0.4)" }}>
-              Begin Assessment <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/demo?mode=demo"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-10 py-4 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-500 hover:text-white">
-              <PlayCircle className="h-4 w-4" />
-              View Live Demo
-            </Link>
-          </div>
         </div>
-      </section>
+
+      </main>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-12" role="contentinfo">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
-            <div>
-              <p className="text-sm font-bold text-white">ICF AI Copilot</p>
-              <p className="text-xs text-slate-500 mt-0.5">Integrative Cognitive Framework · Explainable Decision Intelligence</p>
-              <p className="text-xs text-slate-600 mt-0.5">IBM AI Build Challenge MVP</p>
-            </div>
-            <div className="flex flex-col items-center gap-1 sm:items-end">
-              <p className="text-xs text-slate-600">Decision Support — Not a Diagnosis</p>
-              <p className="text-xs text-slate-700">
-                Designed for integration with IBM watsonx.ai &amp; Granite
-              </p>
-              <p className="text-xs text-slate-700 mt-1">© 2025 ICF AI Copilot</p>
-            </div>
+      <footer className="mx-auto max-w-[1440px] border-t border-white/[0.04] px-6 py-5 lg:px-8 mt-6"
+        role="contentinfo">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-slate-700">
+          <div className="flex items-center gap-3">
+            <span className="font-semibold text-slate-600">ICF AI Copilot</span>
+            <span>·</span>
+            <span>Integrative Cognitive Framework</span>
+            <span>·</span>
+            <span>Explainable Decision Intelligence</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span>IBM AI Build Challenge MVP</span>
+            <span>·</span>
+            <span className="text-amber-700">Decision Support — Not a Diagnosis</span>
+            <span>·</span>
+            <span>© 2025</span>
           </div>
         </div>
       </footer>

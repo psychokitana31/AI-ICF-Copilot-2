@@ -5,12 +5,23 @@ import { type Answers, scoreAnswers, SAMPLE_ANSWERS } from "@/lib/demo/scoring";
 import { selectRecommendation } from "@/lib/demo/recommendations";
 import type { ScoreResult } from "@/lib/demo/scoring";
 import type { Recommendation } from "@/lib/demo/recommendations";
+import {
+  buildSignalImportance,
+  buildDecisionFactors,
+  buildDecisionTree,
+  computeExplainabilityScore,
+  analyseConsistency,
+  buildExecutiveSummary,
+  buildReasoningSteps,
+  type TreeNode,
+} from "@/lib/demo/explainability";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, ArrowRight, RotateCcw, Brain, Target, Zap,
   CheckCircle2, AlertTriangle, Info, Printer, ChevronDown, ChevronUp,
   FlaskConical, Copy, Check, GitBranch, Sliders, Lock,
-  Activity, BookOpen, TrendingUp,
+  Activity, BookOpen, TrendingUp, ListTree, ShieldCheck,
+  FileText, BarChart3, Layers,
 } from "lucide-react";
 
 // ── Question definitions ────────────────────────────────────────────────────────
@@ -312,6 +323,44 @@ const SCENARIOS = [
   },
 ] as const;
 
+// ── Decision Tree View (CSS-only, no library) ──────────────────────────────────
+function DecisionTreeView({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
+  const statusColor = (s?: string) => {
+    if (s === "good")   return "text-green-400 border-green-500/40 bg-green-500/10";
+    if (s === "moderate") return "text-amber-400 border-amber-500/40 bg-amber-500/10";
+    if (s === "low")    return "text-red-400 border-red-500/40 bg-red-500/10";
+    if (s === "result") return "text-indigo-300 border-indigo-500/40 bg-indigo-500/10";
+    return "text-slate-300 border-slate-600 bg-slate-800/40";
+  };
+  const isRoot = depth === 0;
+  return (
+    <div className={cn("relative", depth > 0 && "pl-4 sm:pl-6")}>
+      {depth > 0 && (
+        <div className="absolute left-0 top-0 h-full w-px bg-slate-700" />
+      )}
+      <div className={cn(
+        "relative flex items-center gap-2 mb-2",
+        depth > 0 && "before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-3 before:h-px before:bg-slate-700"
+      )}>
+        <span className={cn(
+          "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium",
+          isRoot ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-300 font-bold text-sm" : statusColor(node.status)
+        )}>
+          {node.label}
+          {node.value && <span className="ml-1 font-mono opacity-80">{node.value}</span>}
+        </span>
+      </div>
+      {node.children && node.children.length > 0 && (
+        <div className="ml-2 space-y-1">
+          {node.children.map((child, i) => (
+            <DecisionTreeView key={i} node={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ──────────────────────────────────────────────────────────────
 
 export function DemoExperience() {
@@ -598,6 +647,15 @@ export function DemoExperience() {
     const riskChanged = simS.riskLevel !== scores.riskLevel;
     const recChanged = simRec.pattern !== rec.pattern;
     const isSimModified = simFocus !== scores.focusIndex || simGoal !== scores.goalAlignment || simCapacity !== scores.capacityIndex;
+
+    // ── M4 explainability computations ────────────────────────────────────────
+    const signals      = buildSignalImportance(scores, answers);
+    const factors      = buildDecisionFactors(scores, rec);
+    const tree         = buildDecisionTree(scores, rec);
+    const explScore    = computeExplainabilityScore(scores, answers);
+    const consistency  = analyseConsistency(scores, answers);
+    const execSummary  = buildExecutiveSummary(scores, rec);
+    const reasoning    = buildReasoningSteps(scores, rec);
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8">
@@ -1181,6 +1239,303 @@ export function DemoExperience() {
           </p>
         </div>
 
+        {/* ── M4-9: Executive Summary ─────────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-indigo-400/30 bg-indigo-500/5 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Executive Summary</h3>
+            <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-500">≤120 words</span>
+          </div>
+          <p className="text-sm text-slate-200 leading-relaxed">{execSummary}</p>
+        </div>
+
+        {/* ── M4-1: Decision Reasoning Pipeline ──────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Layers className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Decision Reasoning</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+            Every step of the reasoning pipeline is shown below. Nothing is hidden. No machine learning is used — all logic is deterministic and rule-based.
+          </p>
+          <div className="space-y-0">
+            {reasoning.map((step, i) => (
+              <div key={step.stage} className="flex gap-4">
+                {/* Connector line */}
+                <div className="flex flex-col items-center">
+                  <div className={cn(
+                    "h-7 w-7 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0",
+                    "border-indigo-500 bg-indigo-500/20 text-indigo-300"
+                  )}>{i + 1}</div>
+                  {i < reasoning.length - 1 && <div className="w-px flex-1 bg-indigo-500/20 mt-0.5 mb-0.5 min-h-[16px]" />}
+                </div>
+                {/* Content */}
+                <div className="pb-5 flex-1 min-w-0">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-0.5">{step.stage}</p>
+                  <p className="text-sm font-medium text-slate-200 mb-1">{step.summary}</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">{step.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── M4-2: Signal Importance ─────────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Signal Importance</h3>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Top positive signals</p>
+              <ul className="space-y-1.5">
+                {signals.positive.length === 0
+                  ? <li className="text-xs text-slate-500 italic">No signals above threshold</li>
+                  : signals.positive.map((sig, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-400" />
+                    <span className="text-slate-300 flex-1">{sig.label}</span>
+                    <span className={cn("text-xs font-mono font-semibold", scoreColor(sig.value))}>{sig.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Top limiting signals</p>
+              <ul className="space-y-1.5">
+                {signals.limiting.length === 0
+                  ? <li className="text-xs text-slate-500 italic">No significant limiting signals</li>
+                  : signals.limiting.map((sig, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                    <span className="text-slate-300 flex-1">{sig.label}</span>
+                    <span className={cn("text-xs font-mono font-semibold", scoreColor(sig.value))}>{sig.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* ── M4-3: Decision Factors ──────────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Info className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Decision Factors</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-red-400/20 bg-red-400/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Primary driver</p>
+              <p className="text-sm text-slate-200">{factors.primaryDriver}</p>
+            </div>
+            <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Secondary driver</p>
+              <p className="text-sm text-slate-200">{factors.secondaryDriver}</p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Supporting factors</p>
+              <ul className="space-y-1.5">
+                {factors.supportingFactors.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-500/60" />{f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Missing information</p>
+              <ul className="space-y-1.5">
+                {factors.missingInformation.map((m, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-slate-500">
+                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-600" />{m}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* ── M4-4: Decision Tree View ────────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <ListTree className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Decision Tree</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">
+            Each branch shows how a domain signal contributed to the final recommendation.
+          </p>
+          <DecisionTreeView node={tree} />
+        </div>
+
+        {/* ── M4-5: Explainability Score ──────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Explainability Score</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            Measures how complete and verifiable the explanation is — distinct from Decision Confidence.
+            Higher = more signals assessed, more complete answers, more consistent patterns.
+          </p>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-1">
+              <div className="flex justify-between text-sm mb-1.5">
+                <span className="text-slate-400">Explanation completeness</span>
+                <span className={cn("font-bold", scoreColor(explScore))}>{explScore}<span className="text-slate-500 font-normal">/100</span></span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-slate-700">
+                <div className={cn("h-2.5 rounded-full transition-all duration-700", scoreBarColor(explScore))} style={{ width: `${explScore}%` }} />
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 text-xs">
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 mb-0.5">Domains assessed</p>
+              <p className="text-slate-200 font-semibold">3 / 6 (MVP)</p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 mb-0.5">Questions answered</p>
+              <p className="text-slate-200 font-semibold">12 / 12</p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 mb-0.5">Decision Confidence</p>
+              <p className={cn("font-semibold", scoreColor(scores.decisionConfidence))}>{scores.decisionConfidence}/100</p>
+            </div>
+            <div className="rounded-lg bg-slate-800/60 p-2.5">
+              <p className="text-slate-500 mb-0.5">Explainability</p>
+              <p className={cn("font-semibold", scoreColor(explScore))}>{explScore}/100</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── M4-6: Recommendation Quality (trade-off + alternative) ─────── */}
+        <div className="mb-6 rounded-2xl border border-indigo-400/20 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Recommendation Quality</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { label: "Recommended action",  value: rec.nextAction,           border: "border-indigo-400/20", bg: "bg-indigo-500/5"  },
+              { label: "Primary driver",       value: rec.reason,               border: "border-blue-400/20",   bg: "bg-blue-500/5"    },
+              { label: "Expected benefit",     value: rec.expectedBenefit,      border: "border-green-400/20",  bg: "bg-green-500/5"   },
+              { label: "Possible limitation",  value: rec.possibleLimitation,   border: "border-amber-400/20",  bg: "bg-amber-500/5"   },
+              { label: "Alternative option",   value: rec.rationale.split(".")[0] + ". Consider the alternative if the primary constraint does not improve within 3–5 days.", border: "border-slate-600", bg: "bg-slate-800/60" },
+              { label: "When to reassess",     value: rec.nextReviewPoint,      border: "border-slate-600",     bg: "bg-slate-800/60"  },
+            ].map(({ label, value, border, bg }) => (
+              <div key={label} className={cn("rounded-lg border p-3", border, bg)}>
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">{label}</p>
+                <p className="text-sm text-slate-300 leading-relaxed">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── M4-7: Decision Evidence ─────────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Evidence Used</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            Only signals that were actually assessed are shown. Future modules remain hidden.
+          </p>
+          <div className="space-y-3">
+            {[
+              {
+                domain: "Mind Signals",
+                icon: Brain,
+                color: "text-blue-400",
+                border: "border-blue-400/20",
+                bg: "bg-blue-400/5",
+                items: [
+                  { label: "Mental clarity",         value: Math.round(((answers.m1 - 1) / 4) * 100), note: "Q1 — direct" },
+                  { label: "Concentration",           value: Math.round(((answers.m2 - 1) / 4) * 100), note: "Q2 — direct" },
+                  { label: "Cognitive overload",      value: Math.round(((answers.m3 - 1) / 4) * 100), note: "Q3 — raw (reverse-applied in score)" },
+                  { label: "Emotional pressure",      value: Math.round(((answers.m4 - 1) / 4) * 100), note: "Q4 — raw (reverse-applied in score)" },
+                ],
+              },
+              {
+                domain: "Goal Signals",
+                icon: Target,
+                color: "text-green-400",
+                border: "border-green-400/20",
+                bg: "bg-green-400/5",
+                items: [
+                  { label: "Goal clarity",        value: Math.round(((answers.g1 - 1) / 4) * 100), note: "Q5" },
+                  { label: "Personal importance", value: Math.round(((answers.g2 - 1) / 4) * 100), note: "Q6" },
+                  { label: "Confidence",          value: Math.round(((answers.g3 - 1) / 4) * 100), note: "Q7" },
+                  { label: "Next-step clarity",   value: Math.round(((answers.g4 - 1) / 4) * 100), note: "Q8" },
+                ],
+              },
+              {
+                domain: "Capacity Signals",
+                icon: Zap,
+                color: "text-amber-400",
+                border: "border-amber-400/20",
+                bg: "bg-amber-400/5",
+                items: [
+                  { label: "Energy level",    value: Math.round(((answers.c1 - 1) / 4) * 100), note: "Q9 — direct" },
+                  { label: "Sleep & recovery", value: Math.round(((answers.c2 - 1) / 4) * 100), note: "Q10 — direct" },
+                  { label: "Workload",         value: Math.round(((answers.c3 - 1) / 4) * 100), note: "Q11 — raw (reverse-applied in score)" },
+                  { label: "Sustained focus",  value: Math.round(((answers.c4 - 1) / 4) * 100), note: "Q12 — direct" },
+                ],
+              },
+            ].map(({ domain, icon: DIcon, color, border, bg, items }) => (
+              <div key={domain} className={cn("rounded-xl border p-4", border, bg)}>
+                <div className="flex items-center gap-2 mb-3">
+                  <DIcon className={cn("h-4 w-4", color)} />
+                  <p className={cn("text-sm font-semibold", color)}>{domain}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {items.map(item => (
+                    <div key={item.label} className="flex items-center justify-between rounded bg-slate-900/40 px-2.5 py-1.5">
+                      <div>
+                        <p className="text-xs text-slate-300">{item.label}</p>
+                        <p className="text-xs text-slate-600">{item.note}</p>
+                      </div>
+                      <span className={cn("text-sm font-bold font-mono ml-2", scoreColor(item.value))}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── M4-8: Consistency Analysis ──────────────────────────────────── */}
+        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="h-5 w-5 text-indigo-400" />
+            <h3 className="font-semibold text-white">Consistency Analysis</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            Internal signal consistency review. Notes highlight patterns that may warrant additional attention.
+            These are observations, not errors or diagnoses.
+          </p>
+          <div className="space-y-3">
+            {consistency.map((flag, i) => (
+              <div key={i} className={cn(
+                "rounded-xl border p-4",
+                flag.severity === "note"
+                  ? "border-amber-400/20 bg-amber-400/5"
+                  : "border-slate-700 bg-slate-800/30"
+              )}>
+                <div className="flex items-start gap-2 mb-1">
+                  {flag.severity === "note"
+                    ? <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-400 mt-0.5" />
+                    : <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-slate-500 mt-0.5" />}
+                  <p className={cn("text-sm font-medium", flag.severity === "note" ? "text-amber-200" : "text-slate-400")}>
+                    {flag.title}
+                  </p>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed ml-6">{flag.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Footer CTA */}
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
           <button onClick={handleRestart} className="flex items-center justify-center gap-2 rounded-full border border-slate-700 px-6 py-2.5 text-sm text-slate-400 hover:bg-slate-800">
@@ -1194,10 +1549,17 @@ export function DemoExperience() {
     );
   }
 
-  // ── REPORT (M3 expanded) ────────────────────────────────────────────────────
+  // ── REPORT (M4 expanded) ────────────────────────────────────────────────────
   if (phase === "report" && scores && rec) {
     const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
     const profileCode = buildProfileCode(scores);
+    // M4 report computations
+    const rptSignals    = buildSignalImportance(scores, answers);
+    const rptTree       = buildDecisionTree(scores, rec);
+    const rptExplScore  = computeExplainabilityScore(scores, answers);
+    const rptConsistency= analyseConsistency(scores, answers);
+    const rptExecSummary= buildExecutiveSummary(scores, rec);
+    const rptReasoning  = buildReasoningSteps(scores, rec);
     return (
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between print:hidden">
@@ -1367,6 +1729,128 @@ export function DemoExperience() {
               Goal = avg(clarity, importance, confidence, next-step). Capacity = avg(energy, recovery, ¬workload, focus).
               All 0–100. Decision Readiness = Goal×40% + Mind×35% + Capacity×25%.
             </p>
+          </section>
+
+          {/* M4: Executive Summary in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Executive Summary</h2>
+            <div className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-5 print:border-indigo-300 print:bg-indigo-50">
+              <p className="text-sm text-slate-200 print:text-slate-800 leading-relaxed">{rptExecSummary}</p>
+            </div>
+          </section>
+
+          {/* M4: Decision Reasoning in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Decision Reasoning</h2>
+            <div className="space-y-3">
+              {rptReasoning.map((step, i) => (
+                <div key={step.stage} className="rounded-lg border border-slate-700 bg-slate-800/40 px-4 py-3 print:border-slate-300 print:bg-slate-50">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="flex h-5 w-5 rounded-full bg-indigo-600 text-xs font-bold text-white items-center justify-center flex-shrink-0 print:bg-indigo-100 print:text-indigo-700">{i + 1}</span>
+                    <p className="text-xs uppercase tracking-wide text-slate-500 print:text-slate-600">{step.stage}</p>
+                  </div>
+                  <p className="text-sm font-medium text-slate-200 print:text-slate-800 ml-7 mb-0.5">{step.summary}</p>
+                  <p className="text-xs text-slate-500 print:text-slate-600 ml-7 leading-relaxed">{step.detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* M4: Signal Importance in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Signal Importance</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 print:text-slate-600 mb-2">Positive signals</p>
+                <ul className="space-y-1.5">
+                  {rptSignals.positive.length === 0
+                    ? <li className="text-xs text-slate-500 italic">No signals above threshold</li>
+                    : rptSignals.positive.map((sig, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-slate-300 print:text-slate-700">
+                      <span className="text-green-400 print:text-green-700">✓</span>
+                      <span className="flex-1">{sig.label}</span>
+                      <span className="font-mono text-xs">{sig.value}/100</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 print:text-slate-600 mb-2">Limiting signals</p>
+                <ul className="space-y-1.5">
+                  {rptSignals.limiting.length === 0
+                    ? <li className="text-xs text-slate-500 italic">None</li>
+                    : rptSignals.limiting.map((sig, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-slate-300 print:text-slate-700">
+                      <span className="text-amber-400 print:text-amber-700">⚠</span>
+                      <span className="flex-1">{sig.label}</span>
+                      <span className="font-mono text-xs">{sig.value}/100</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* M4: Decision Tree in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Decision Tree</h2>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-5 print:border-slate-300 print:bg-slate-50">
+              <DecisionTreeView node={rptTree} />
+            </div>
+          </section>
+
+          {/* M4: Explainability Score in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Explainability Score</h2>
+            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-5 print:border-slate-300 print:bg-slate-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-slate-300 print:text-slate-700">Explanation completeness</span>
+                <span className={cn("font-bold text-lg", scoreColor(rptExplScore))}>{rptExplScore}/100</span>
+              </div>
+              <p className="text-xs text-slate-500 print:text-slate-600">
+                Explainability measures how complete the explanation is, not how confident the system is.
+                Decision Confidence: {scores.decisionConfidence}/100 · Explainability: {rptExplScore}/100.
+              </p>
+            </div>
+          </section>
+
+          {/* M4: Consistency Analysis in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Consistency Analysis</h2>
+            <div className="space-y-2">
+              {rptConsistency.map((flag, i) => (
+                <div key={i} className={cn(
+                  "rounded-lg border px-4 py-3 print:border-slate-300",
+                  flag.severity === "note" ? "border-amber-400/20 bg-amber-400/5 print:bg-amber-50" : "border-slate-700 bg-slate-800/30 print:bg-slate-50"
+                )}>
+                  <p className={cn("text-sm font-medium mb-0.5", flag.severity === "note" ? "text-amber-200 print:text-amber-800" : "text-slate-400 print:text-slate-700")}>{flag.title}</p>
+                  <p className="text-xs text-slate-500 print:text-slate-600 leading-relaxed">{flag.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* M4: Evidence Used in report */}
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-white print:text-black mb-3">Evidence Used</h2>
+            <div className="grid gap-2 sm:grid-cols-3 text-xs">
+              {[
+                { domain: "Mind", items: ["Q1 Mental clarity", "Q2 Concentration", "Q3 Overload (rev.)", "Q4 Pressure (rev.)"] },
+                { domain: "Goal", items: ["Q5 Goal clarity", "Q6 Importance", "Q7 Confidence", "Q8 Next steps"] },
+                { domain: "Capacity", items: ["Q9 Energy", "Q10 Recovery", "Q11 Workload (rev.)", "Q12 Focus"] },
+              ].map(({ domain, items }) => (
+                <div key={domain} className="rounded-lg border border-slate-700 bg-slate-800/40 p-3 print:border-slate-300 print:bg-slate-50">
+                  <p className="font-semibold text-slate-300 print:text-slate-800 mb-1.5">{domain} signals</p>
+                  <ul className="space-y-0.5">
+                    {items.map(item => (
+                      <li key={item} className="flex items-start gap-1.5 text-slate-500 print:text-slate-600">
+                        <span>•</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="mb-8">

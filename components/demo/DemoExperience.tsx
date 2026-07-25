@@ -83,19 +83,27 @@ function riskColor(r: string) {
   return "text-red-400 bg-red-400/10 border-red-400/30";
 }
 
-// ── Shared score-bar sub-component (unchanged) ──────────────────────────────────
+// ── Shared score-bar sub-component ──────────────────────────────────────────────
 
 function ScoreBar({ label, value, icon: Icon, iconColor }: { label: string; value: number; icon: React.ElementType; iconColor: string }) {
   return (
     <div>
-      <div className="flex items-center justify-between text-sm mb-1.5">
-        <span className="flex items-center gap-1.5 font-medium text-slate-300">
-          <Icon className={cn("h-4 w-4", iconColor)} />{label}
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="flex items-center gap-2 font-medium text-slate-300">
+          <span className={cn("flex h-6 w-6 items-center justify-center rounded-md", iconColor.replace("text-", "bg-").replace("400", "400/12"))}>
+            <Icon className={cn("h-3.5 w-3.5", iconColor)} aria-hidden="true" />
+          </span>
+          {label}
         </span>
-        <span className={cn("font-bold", scoreColor(value))}>{value}<span className="text-slate-500 font-normal">/100</span></span>
+        <span className={cn("text-base font-bold tracking-tight", scoreColor(value))}>
+          {value}<span className="text-slate-600 text-xs font-normal ml-0.5">/100</span>
+        </span>
       </div>
-      <div className="h-2 w-full rounded-full bg-slate-700">
-        <div className={cn("h-2 rounded-full transition-all duration-700", scoreBarColor(value))} style={{ width: `${value}%` }} />
+      <div className="h-1.5 w-full rounded-full" style={{ background: "rgba(30,41,59,0.9)" }}>
+        <div
+          className={cn("h-1.5 rounded-full transition-all duration-700", scoreBarColor(value))}
+          style={{ width: `${value}%`, boxShadow: value >= 65 ? "0 0 6px rgba(34,197,94,0.4)" : value >= 40 ? "0 0 6px rgba(245,158,11,0.3)" : "none" }}
+        />
       </div>
     </div>
   );
@@ -152,8 +160,7 @@ function buildProfileCode(s: ScoreResult): string {
   return `ICF-M${s.focusIndex}-G${s.goalAlignment}-B${s.capacityIndex}-${rCode}`;
 }
 
-// ── Human Development Graph (pure SVG, no dependency) ─────────────────────────
-// Six-node radial layout. Assessed nodes show score colour; unassessed are dim.
+// ── Human Development Graph (premium SVG) ─────────────────────────────────────
 const GRAPH_NODES = [
   { id: "mind",     label: "Mind",     angle: -90  },
   { id: "language", label: "Language", angle: -30  },
@@ -164,22 +171,18 @@ const GRAPH_NODES = [
 ] as const;
 
 function HumanDevelopmentGraph({ mind, goal, body }: { mind: number; goal: number; body: number }) {
-  const R = 100; // orbit radius
-  const cx = 160; const cy = 160; // centre of 320×320 viewBox
+  const R = 104;
+  const cx = 165; const cy = 165;
 
-  // Value for assessed nodes 0–1 (ring radius); unassessed = 0.15 (faint)
   const scores: Record<string, number | null> = {
     mind, goal, body, language: null, scenario: null, global: null,
   };
 
-  // Positions
   const pos = GRAPH_NODES.map(n => {
     const rad = (n.angle * Math.PI) / 180;
     return { ...n, x: cx + R * Math.cos(rad), y: cy + R * Math.sin(rad) };
   });
 
-  // Build polygon path for assessed ring (only 3 points: mind, goal, body)
-  // mind=top(-90), goal=bottom-left(210), body=bottom(90)
   const assessedPos = pos.filter(p => ["mind","goal","body"].includes(p.id));
   const polyPoints = assessedPos
     .map(p => {
@@ -193,24 +196,64 @@ function HumanDevelopmentGraph({ mind, goal, body }: { mind: number; goal: numbe
   return (
     <div className="flex flex-col items-center">
       <svg
-        viewBox="0 0 320 320"
-        className="w-full max-w-[280px] sm:max-w-[320px]"
+        viewBox="0 0 330 330"
+        className="w-full max-w-[290px] sm:max-w-[330px]"
         role="img"
         aria-label="ICF Human Development Graph showing assessed domain scores"
       >
-        {/* Concentric guide rings */}
-        {[0.25, 0.5, 0.75, 1].map(r => (
-          <circle key={r} cx={cx} cy={cy} r={R * r} fill="none" stroke="rgba(99,102,241,0.12)" strokeWidth="1" />
+        <defs>
+          {/* Glow filters for assessed nodes */}
+          <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          {/* Polygon fill gradient */}
+          <radialGradient id="poly-fill" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(99,102,241,0.35)" />
+            <stop offset="100%" stopColor="rgba(99,102,241,0.06)" />
+          </radialGradient>
+        </defs>
+
+        {/* Concentric guide rings — subtle */}
+        {[0.25, 0.5, 0.75, 1].map((r, i) => (
+          <circle
+            key={r}
+            cx={cx} cy={cy} r={R * r}
+            fill="none"
+            stroke={i === 3 ? "rgba(99,102,241,0.18)" : "rgba(99,102,241,0.08)"}
+            strokeWidth={i === 3 ? "1.5" : "0.75"}
+            strokeDasharray={i < 3 ? "2 4" : undefined}
+          />
         ))}
+
         {/* Spoke lines */}
         {pos.map(p => (
-          <line key={p.id} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(99,102,241,0.15)" strokeWidth="1" />
+          <line
+            key={p.id}
+            x1={cx} y1={cy} x2={p.x} y2={p.y}
+            stroke="rgba(99,102,241,0.14)"
+            strokeWidth="0.75"
+          />
         ))}
 
-        {/* Assessed-domain fill polygon */}
-        <polygon points={polyPoints} fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.6)" strokeWidth="1.5" strokeLinejoin="round" />
+        {/* Assessed-domain fill polygon — gradient fill */}
+        <polygon
+          points={polyPoints}
+          fill="url(#poly-fill)"
+          stroke="rgba(99,102,241,0.7)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
 
-        {/* Node circles */}
+        {/* Node circles + labels */}
         {pos.map(p => {
           const val = scores[p.id];
           const isAssessed = val !== null;
@@ -218,34 +261,69 @@ function HumanDevelopmentGraph({ mind, goal, body }: { mind: number; goal: numbe
           const rad = (GRAPH_NODES.find(n => n.id === p.id)!.angle * Math.PI) / 180;
           const nx = cx + norm * R * Math.cos(rad);
           const ny = cy + norm * R * Math.sin(rad);
+
           const dotColor = isAssessed
             ? (val! >= 65 ? "#22c55e" : val! >= 40 ? "#f59e0b" : "#ef4444")
+            : "#1e293b";
+          const dotGlow = isAssessed
+            ? (val! >= 65 ? "url(#glow-green)" : val! >= 40 ? "url(#glow-amber)" : "url(#glow-red)")
+            : undefined;
+          const strokeColor = isAssessed
+            ? (val! >= 65 ? "#22c55e" : val! >= 40 ? "#f59e0b" : "#ef4444")
             : "#334155";
+
+          const lx = p.x + (p.x < cx - 5 ? -13 : p.x > cx + 5 ? 13 : 0);
+          const ly = p.y + (p.y < cy - 5 ? -13 : p.y > cy + 5 ? 17 : 0);
+          const anchor = p.x < cx - 5 ? "end" : p.x > cx + 5 ? "start" : "middle";
+
           return (
             <g key={p.id}>
-              {/* Outer anchor node */}
-              <circle cx={p.x} cy={p.y} r={5} fill={isAssessed ? dotColor : "#1e293b"} stroke={isAssessed ? dotColor : "#475569"} strokeWidth="1.5" />
-              {/* Score position dot */}
-              {isAssessed && <circle cx={nx} cy={ny} r={4} fill={dotColor} opacity={0.9} />}
-              {/* Label */}
+              {/* Outer halo on assessed nodes */}
+              {isAssessed && (
+                <circle
+                  cx={p.x} cy={p.y} r={10}
+                  fill={dotColor}
+                  opacity="0.08"
+                />
+              )}
+              {/* Anchor node */}
+              <circle
+                cx={p.x} cy={p.y} r={isAssessed ? 5.5 : 3.5}
+                fill={dotColor}
+                stroke={strokeColor}
+                strokeWidth="1.5"
+                filter={isAssessed ? dotGlow : undefined}
+              />
+              {/* Score position dot (inner) */}
+              {isAssessed && (
+                <circle
+                  cx={nx} cy={ny} r={4}
+                  fill={dotColor}
+                  opacity="0.85"
+                  filter={dotGlow}
+                />
+              )}
+              {/* Domain label */}
               <text
-                x={p.x + (p.x < cx - 5 ? -10 : p.x > cx + 5 ? 10 : 0)}
-                y={p.y + (p.y < cy - 5 ? -10 : p.y > cy + 5 ? 14 : 0)}
-                textAnchor={p.x < cx - 5 ? "end" : p.x > cx + 5 ? "start" : "middle"}
+                x={lx} y={ly}
+                textAnchor={anchor}
                 fontSize="11"
-                fill={isAssessed ? "#e2e8f0" : "#475569"}
                 fontWeight={isAssessed ? "600" : "400"}
+                fill={isAssessed ? "#e2e8f0" : "#475569"}
+                style={{ fontFamily: "system-ui, sans-serif" }}
               >
                 {p.label}
               </text>
-              {/* Score label */}
+              {/* Score value label */}
               {isAssessed && (
                 <text
-                  x={p.x + (p.x < cx - 5 ? -10 : p.x > cx + 5 ? 10 : 0)}
-                  y={p.y + (p.y < cy - 5 ? -22 : p.y > cy + 5 ? 26 : 12)}
-                  textAnchor={p.x < cx - 5 ? "end" : p.x > cx + 5 ? "start" : "middle"}
-                  fontSize="10"
+                  x={lx}
+                  y={p.y + (p.y < cy - 5 ? -25 : p.y > cy + 5 ? 30 : ly - p.y + 15)}
+                  textAnchor={anchor}
+                  fontSize="9.5"
+                  fontWeight="700"
                   fill={dotColor}
+                  opacity="0.9"
                 >
                   {val}
                 </text>
@@ -253,14 +331,19 @@ function HumanDevelopmentGraph({ mind, goal, body }: { mind: number; goal: numbe
             </g>
           );
         })}
-        {/* Centre label */}
-        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="10" fill="#6366f1" fontWeight="700">ICF</text>
-        <text x={cx} y={cy + 6} textAnchor="middle" fontSize="9" fill="#64748b">MVP</text>
+
+        {/* Centre — ICF brand mark */}
+        <circle cx={cx} cy={cy} r={18} fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)" strokeWidth="1" />
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="8.5" fill="#818cf8" fontWeight="800" style={{ letterSpacing: "0.08em" }}>ICF</text>
+        <text x={cx} y={cy + 7} textAnchor="middle" fontSize="7.5" fill="rgba(99,102,241,0.5)" style={{ letterSpacing: "0.06em" }}>ENGINE</text>
       </svg>
 
       {/* Accessible text summary */}
-      <p className="mt-2 text-center text-xs text-slate-500 max-w-xs" aria-live="polite">
-        Mind {mind}/100 · Goal {goal}/100 · Body {body}/100 · Language, Scenario, Global not yet assessed
+      <p className="mt-3 text-center text-xs text-slate-500 max-w-xs leading-relaxed" aria-live="polite">
+        Mind <span className="text-blue-400 font-semibold">{mind}</span> ·
+        Goal <span className="text-green-400 font-semibold">{goal}</span> ·
+        Body <span className="text-amber-400 font-semibold">{body}</span>
+        <span className="text-slate-600"> · Language, Scenario, Global: future modules</span>
       </p>
     </div>
   );
@@ -493,22 +576,43 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
   // ── INTRO ───────────────────────────────────────────────────────────────────
   if (phase === "intro") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-sm text-indigo-300">
-          <FlaskConical className="h-4 w-4" aria-hidden="true" />
-          Decision Intelligence Assessment
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        {/* Badge */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-400/8 px-4 py-1.5 text-sm text-indigo-300"
+            style={{ background: "rgba(99,102,241,0.08)" }}>
+            <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+            Decision Intelligence Assessment
+          </div>
         </div>
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">
-          ICF Decision Intelligence Assessment
-        </h1>
-        <p className="mt-4 text-slate-400 leading-relaxed">
-          12 questions across three domains — Mind, Goal and Body / Capacity.
-          Takes approximately 3 minutes. No data is sent anywhere.
-        </p>
 
-        {/* Domain overview */}
+        {/* Headline */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white sm:text-4xl leading-tight">
+            ICF Decision Intelligence
+            <span className="block mt-1"
+              style={{ background: "linear-gradient(90deg,#818cf8,#6366f1)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Assessment
+            </span>
+          </h1>
+          <p className="mt-4 text-slate-400 leading-relaxed max-w-lg mx-auto">
+            12 questions across three domains — Mind, Goal and Body / Capacity.
+            Takes approximately 3 minutes. No data is sent anywhere.
+          </p>
+          {/* Micro stats */}
+          <div className="mt-5 flex items-center justify-center gap-6 text-xs text-slate-500">
+            {[["3", "Domains"], ["12", "Questions"], ["~3 min", "Duration"]].map(([val, lbl]) => (
+              <div key={lbl} className="flex flex-col items-center gap-0.5">
+                <span className="text-base font-bold text-indigo-400">{val}</span>
+                <span>{lbl}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Domain cards */}
         <div
-          className="mt-8 grid gap-4 text-left sm:grid-cols-3"
+          className="grid gap-3 text-left sm:grid-cols-3 mb-8"
           role="list"
           aria-label="Assessment domains"
         >
@@ -518,11 +622,18 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
               <div
                 key={s.id}
                 role="listitem"
-                className={cn("rounded-xl border p-4", s.bg, s.border)}
+                className={cn("rounded-2xl border p-5 transition-colors", s.bg, s.border)}
+                style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
               >
-                <Icon className={cn("h-5 w-5 mb-2", s.color)} aria-hidden="true" />
-                <p className={cn("font-semibold text-sm", s.color)}>{s.label}</p>
-                <p className="mt-1 text-xs text-slate-400">4 questions</p>
+                <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl mb-3",
+                  s.id === "mind"     ? "bg-blue-400/12"  :
+                  s.id === "goal"     ? "bg-green-400/12" : "bg-amber-400/12")}
+                  style={{ background: s.id === "mind" ? "rgba(96,165,250,0.1)" : s.id === "goal" ? "rgba(74,222,128,0.1)" : "rgba(251,191,36,0.1)" }}>
+                  <Icon className={cn("h-5 w-5", s.color)} aria-hidden="true" />
+                </div>
+                <p className={cn("font-semibold text-sm mb-1", s.color)}>{s.label}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{s.description}</p>
+                <p className="mt-2 text-xs text-slate-600">4 questions</p>
               </div>
             );
           })}
@@ -531,35 +642,41 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         {/* Trust & Safety notice */}
         <div
           role="note"
-          className="mt-8 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-left text-sm text-amber-200"
+          className="mb-8 rounded-xl border border-amber-400/20 p-4 text-left text-sm text-amber-200 leading-relaxed"
+          style={{ background: "rgba(245,158,11,0.05)" }}
         >
-          <AlertTriangle className="mb-2 h-4 w-4 text-amber-400" aria-hidden="true" />
-          <strong className="font-semibold">Decision support — not a diagnosis.</strong>{" "}
-          This assessment is intended to support human decision-making and should
-          not be interpreted as a medical or psychological diagnosis. It does not
-          provide treatment, therapy or emergency mental-health services.
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" aria-hidden="true" />
+            <p>
+              <strong className="font-semibold">Decision support — not a diagnosis.</strong>{" "}
+              This assessment supports human decision-making and should not be interpreted
+              as a medical or psychological diagnosis. It does not provide treatment,
+              therapy or emergency mental-health services.
+            </p>
+          </div>
         </div>
 
         {/* CTAs */}
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             onClick={() => setPhase("assessment")}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-slate-950 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3 font-semibold text-slate-950 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             aria-label="Begin the 12-question assessment"
           >
             Start assessment <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
           <button
             onClick={loadSample}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-600 px-8 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-500/50 px-8 py-3 text-sm font-semibold text-white hover:border-indigo-400 hover:bg-indigo-600/20"
+            style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.18),rgba(99,102,241,0.08))", boxShadow: "0 0 0 1px rgba(99,102,241,0.2) inset" }}
             aria-label="Load a pre-filled sample profile and skip directly to the dashboard"
           >
             <PlayCircle className="h-4 w-4" aria-hidden="true" />
             Demo Mode — Sample Profile
           </button>
         </div>
-        <p className="mt-4 text-xs text-slate-600">
-          Demo Mode loads a representative sample — clearly labelled throughout.
+        <p className="mt-4 text-center text-xs text-slate-600">
+          Demo Mode loads a representative sample profile — clearly labelled throughout.
         </p>
       </div>
     );
@@ -583,29 +700,47 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
 
     return (
       <div className="mx-auto max-w-xl px-4 py-8">
-        <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
-          <span>{totalAnswered} / 12 answered</span>
-          <button onClick={handleRestart} className="flex items-center gap-1 hover:text-slate-300">
+        {/* Progress header */}
+        <div className="mb-3 flex items-center justify-between text-xs">
+          <span className="text-slate-400 font-medium">{totalAnswered} <span className="text-slate-600">/ 12 answered</span></span>
+          <button onClick={handleRestart} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 transition-colors">
             <RotateCcw className="h-3 w-3" /> Restart
           </button>
         </div>
-        <div className="mb-6 h-1 w-full overflow-hidden rounded-full bg-slate-800">
-          <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${overallProgress}%` }} />
+        {/* Premium segmented progress bar */}
+        <div className="mb-6 relative h-1.5 w-full overflow-hidden rounded-full" style={{ background: "rgba(30,41,59,0.9)" }}>
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${overallProgress}%`,
+              background: "linear-gradient(90deg,#6366f1,#818cf8)",
+              boxShadow: "0 0 8px rgba(99,102,241,0.5)",
+            }}
+          />
+          {/* Section tick marks */}
+          {[33, 67].map(p => (
+            <div key={p} className="absolute top-0 h-full w-px" style={{ left: `${p}%`, background: "rgba(15,23,42,0.8)" }} />
+          ))}
         </div>
 
         {/* Diagnostic section header */}
-        <div className={cn("mb-5 rounded-xl border p-4", section.bg, section.border)}>
-          <div className="flex items-center gap-3 mb-2">
-            <Icon className={cn("h-6 w-6 flex-shrink-0", section.color)} />
+        <div className={cn("mb-5 rounded-2xl border p-5", section.bg, section.border)}
+          style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{ background: section.id === "mind" ? "rgba(96,165,250,0.12)" : section.id === "goal" ? "rgba(74,222,128,0.12)" : "rgba(251,191,36,0.12)" }}>
+              <Icon className={cn("h-5 w-5", section.color)} aria-hidden="true" />
+            </div>
             <div>
-              <p className={cn("font-bold", section.color)}>{section.label}</p>
-              <p className="text-xs text-slate-400">Section {currentSection + 1} of {SECTIONS.length} · 4 questions</p>
+              <p className={cn("font-bold text-sm", section.color)}>{section.label} Domain</p>
+              <p className="text-xs text-slate-500 mt-0.5">Section {currentSection + 1} of {SECTIONS.length} · 4 questions</p>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed mb-2">{section.description}</p>
+          <p className="text-xs text-slate-400 leading-relaxed mb-3">{section.description}</p>
           <div className="flex flex-wrap gap-1.5">
             {section.signals.map(sig => (
-              <span key={sig} className={cn("rounded-full border px-2 py-0.5 text-xs", section.border, section.color, "bg-transparent opacity-80")}>
+              <span key={sig} className={cn("rounded-full border px-2.5 py-0.5 text-xs", section.border, section.color)}
+                style={{ background: "transparent", opacity: 0.8 }}>
                 {sig}
               </span>
             ))}
@@ -613,51 +748,66 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* Live signal panel */}
-        <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500 mb-3 flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5" /> Live signals
+        <div className="mb-6 rounded-xl border border-slate-700/70 p-4"
+          style={{ background: "rgba(15,23,42,0.6)" }}>
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-indigo-400" /> Live signals
           </p>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {[
-              { label: "Mind",         score: liveMindScore, color: "bg-blue-500",  textColor: "text-blue-400"  },
-              { label: "Goal",         score: liveGoalScore, color: "bg-green-500", textColor: "text-green-400" },
-              { label: "Body/Cap",     score: liveCapScore,  color: "bg-amber-500", textColor: "text-amber-400" },
-            ].map(({ label, score, color, textColor }) => (
+              { label: "Mind",     score: liveMindScore, barColor: "#3b82f6", textColor: "text-blue-400"  },
+              { label: "Goal",     score: liveGoalScore, barColor: "#22c55e", textColor: "text-green-400" },
+              { label: "Body/Cap", score: liveCapScore,  barColor: "#f59e0b", textColor: "text-amber-400" },
+            ].map(({ label, score, barColor, textColor }) => (
               <div key={label} className="flex items-center gap-3">
-                <span className={cn("text-xs font-medium w-14 flex-shrink-0", textColor)}>{label}</span>
-                <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                <span className={cn("text-xs font-semibold w-14 flex-shrink-0", textColor)}>{label}</span>
+                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(51,65,85,0.7)" }}>
                   <div
-                    className={cn("h-1.5 rounded-full transition-all duration-500", color)}
-                    style={{ width: score !== null ? `${score}%` : "0%" }}
+                    className="h-1 rounded-full transition-all duration-500"
+                    style={{
+                      width: score !== null ? `${score}%` : "0%",
+                      background: barColor,
+                      boxShadow: score !== null && score > 0 ? `0 0 6px ${barColor}60` : "none",
+                    }}
                   />
                 </div>
-                <span className="text-xs text-slate-500 w-12 text-right">
-                  {score !== null ? `~${score}/100` : "—"}
+                <span className="text-xs text-slate-500 w-12 text-right tabular-nums">
+                  {score !== null ? `~${score}` : "—"}
                 </span>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-slate-600 italic">Partial estimates — finalised when all questions are answered.</p>
+          <p className="mt-2.5 text-xs text-slate-600 italic">Partial estimates · finalised after all questions.</p>
         </div>
-        <div className="space-y-8">
+
+        {/* Question cards */}
+        <div className="space-y-6">
           {sectionQuestions.map((q, qi) => {
             const ans = answers[q.id as QuestionId] ?? 0;
             return (
-              <div key={q.id}>
-                <p className="mb-1 text-xs text-slate-500">Question {currentSection * 4 + qi + 1} of 12</p>
-                <p className="mb-3 font-medium text-white leading-snug">
+              <div key={q.id} className="rounded-2xl border border-slate-700/60 p-5"
+                style={{ background: "rgba(15,23,42,0.5)" }}>
+                <p className="mb-1.5 text-xs text-slate-500 tabular-nums">Question {currentSection * 4 + qi + 1} of 12</p>
+                <p className="mb-4 font-medium text-white leading-snug">
                   {q.text}
-                  {"reverseNote" in q && <span className="ml-1 text-xs text-slate-500">{q.reverseNote}</span>}
+                  {"reverseNote" in q && <span className="ml-1.5 text-xs text-slate-500">{q.reverseNote}</span>}
                 </p>
                 <div className="grid grid-cols-5 gap-2">
                   {[1,2,3,4,5].map(v => (
                     <button key={v} onClick={() => setAnswer(q.id as QuestionId, v)}
                       aria-label={`${v} — ${SCALE_LABELS[v-1]}`}
-                      className={cn("flex flex-col items-center gap-1 rounded-xl border py-3 text-xs transition-all",
-                        ans === v ? "border-indigo-500 bg-indigo-600 text-white font-semibold"
-                                  : "border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-500 hover:text-slate-200")}>
-                      <span className="text-lg font-bold">{v}</span>
-                      <span className="hidden text-center leading-tight sm:block">{SCALE_LABELS[v-1]}</span>
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-xl border py-3 text-xs transition-all",
+                        ans === v
+                          ? "border-indigo-500 text-white font-semibold"
+                          : "border-slate-700/80 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                      )}
+                      style={ans === v
+                        ? { background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 12px rgba(99,102,241,0.35)" }
+                        : { background: "rgba(30,41,59,0.6)" }
+                      }>
+                      <span className="text-lg font-bold leading-none">{v}</span>
+                      <span className="hidden text-center leading-tight sm:block text-xs opacity-80">{SCALE_LABELS[v-1]}</span>
                     </button>
                   ))}
                 </div>
@@ -665,18 +815,22 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
             );
           })}
         </div>
+
         {validationError && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-300">
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-400/30 p-3 text-sm text-red-300"
+            style={{ background: "rgba(239,68,68,0.06)" }}>
             <AlertTriangle className="h-4 w-4 flex-shrink-0" /> {validationError}
           </div>
         )}
+
         <div className="mt-8 flex gap-3">
           <button onClick={handleBack}
-            className="flex items-center gap-2 rounded-full border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800">
+            className="flex items-center gap-2 rounded-full border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800/60 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <button onClick={handleContinue}
-            className="ml-auto flex items-center gap-2 rounded-full bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
+            className="ml-auto flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+            style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 16px rgba(99,102,241,0.3)" }}>
             {currentSection < SECTIONS.length - 1 ? "Continue" : "See my results"}
             <ArrowRight className="h-4 w-4" />
           </button>
@@ -751,9 +905,10 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 0. Diagnostic Timeline */}
-        <div className="mb-8 rounded-2xl border border-slate-700 bg-slate-800/40 p-5">
-          <p className="text-xs uppercase tracking-wide text-slate-500 mb-4 flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5" /> Diagnostic pipeline
+        <div className="mb-8 rounded-2xl border border-slate-700/60 p-5"
+          style={{ background: "rgba(15,23,42,0.55)" }}>
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-indigo-400" /> Diagnostic pipeline
           </p>
           <div className="flex items-start gap-0 overflow-x-auto pb-1">
             {[
@@ -787,44 +942,52 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 1. Decision Readiness hero */}
-        <div className="mb-6 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-6 text-center">
-          <p className="text-sm text-slate-400 mb-1">Decision Readiness</p>
-          <p className={cn("text-6xl font-bold", scoreColor(scores.decisionReadiness))}>{scores.decisionReadiness}</p>
-          <p className="text-slate-500 text-sm mt-1">out of 100</p>
-          <div className="mt-4 flex justify-center">
-            <span className={cn("rounded-full border px-4 py-1 text-sm font-semibold", riskColor(scores.riskLevel))}>
+        <div className="mb-6 rounded-2xl border border-indigo-400/25 p-7 text-center relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.04))", boxShadow: "0 0 40px rgba(99,102,241,0.08) inset, 0 4px 24px rgba(0,0,0,0.2)" }}>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div style={{ width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)" }} />
+          </div>
+          <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Decision Readiness</p>
+          <p className={cn("text-7xl font-bold leading-none icf-score-hero", scoreColor(scores.decisionReadiness))}>
+            {scores.decisionReadiness}
+          </p>
+          <p className="text-slate-600 text-sm mt-2 tabular-nums">out of 100</p>
+          <div className="mt-5 flex justify-center">
+            <span className={cn("rounded-full border px-4 py-1.5 text-sm font-semibold", riskColor(scores.riskLevel))}>
               Risk Level: {scores.riskLevel}
             </span>
           </div>
         </div>
 
         {/* Score grid */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
           {[
-            { label: "Focus Index",    value: scores.focusIndex,    icon: Brain,  color: "text-blue-400" },
-            { label: "Goal Alignment", value: scores.goalAlignment, icon: Target, color: "text-green-400" },
-            { label: "Capacity Index", value: scores.capacityIndex, icon: Zap,    color: "text-amber-400" },
+            { label: "Focus Index",    value: scores.focusIndex,    icon: Brain,  color: "text-blue-400",  glow: "rgba(59,130,246,0.1)"  },
+            { label: "Goal Alignment", value: scores.goalAlignment, icon: Target, color: "text-green-400", glow: "rgba(34,197,94,0.1)"   },
+            { label: "Capacity Index", value: scores.capacityIndex, icon: Zap,    color: "text-amber-400", glow: "rgba(245,158,11,0.1)"  },
           ].map(m => (
-            <div key={m.label} className="rounded-xl border border-slate-700 bg-slate-800/60 p-5">
+            <div key={m.label} className="rounded-2xl border border-slate-700/60 p-5 transition-colors hover:border-slate-600"
+              style={{ background: `linear-gradient(135deg,${m.glow},rgba(15,23,42,0.75))` }}>
               <ScoreBar label={m.label} value={m.value} icon={m.icon} iconColor={m.color} />
             </div>
           ))}
         </div>
 
         {/* Signals */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-green-400/20 bg-green-400/5 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Strongest signal</p>
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-green-400/20 p-4" style={{ background: "rgba(34,197,94,0.04)" }}>
+            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Strongest signal</p>
             <p className="font-semibold text-green-300">{scores.strongestSignal}</p>
           </div>
-          <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Primary constraint</p>
+          <div className="rounded-xl border border-red-400/20 p-4" style={{ background: "rgba(239,68,68,0.04)" }}>
+            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Primary constraint</p>
             <p className="font-semibold text-red-300">{scores.primaryConstraint}</p>
           </div>
         </div>
 
         {/* 2. Main recommendation */}
-        <div className="mb-6 rounded-2xl border border-indigo-400/30 bg-slate-800/60 p-6">
+        <div className="mb-6 rounded-2xl border border-indigo-400/25 p-6"
+          style={{ background: "rgba(15,23,42,0.7)", boxShadow: "0 0 0 1px rgba(99,102,241,0.06) inset, 0 4px 20px rgba(0,0,0,0.2)" }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Recommendation · Pattern {rec.pattern}</p>
             <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-semibold",
@@ -866,7 +1029,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 3. Why this recommendation? */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <button onClick={() => setWhyOpen(o => !o)} className="flex w-full items-center justify-between text-left">
             <div className="flex items-center gap-2">
               <Info className="h-5 w-5 text-indigo-400" />
@@ -906,7 +1069,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 3b. M3: Signal explanations — "What influences this score?" */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <Info className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">What influences each score?</h3>
@@ -1049,7 +1212,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 4. ICF Human Development Graph */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-1">
             <GitBranch className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">ICF Human Development Graph</h3>
@@ -1084,7 +1247,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* 5. Cross-domain insights */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <h3 className="font-semibold text-white mb-4">Cross-Domain Insights</h3>
           <div className="mb-4 rounded-xl border border-indigo-400/20 bg-indigo-500/5 p-4">
             <p className="text-white text-sm font-medium">{insights.narrativeInsight}</p>
@@ -1230,7 +1393,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
 
         {/* 7. Original vs Simulated comparison */}
         {isSimModified && (
-          <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+          <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
             <h3 className="font-semibold text-white mb-4">Original vs Simulated</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1285,7 +1448,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         )}
 
         {/* 8. ICF Profile Code */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-white">ICF Profile Code</h3>
             <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-500">MVP profile code</span>
@@ -1320,7 +1483,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-1: Decision Reasoning Pipeline ──────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <Layers className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Decision Reasoning</h3>
@@ -1351,7 +1514,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-2: Signal Importance ─────────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Signal Importance</h3>
@@ -1389,7 +1552,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-3: Decision Factors ──────────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <Info className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Decision Factors</h3>
@@ -1427,7 +1590,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-4: Decision Tree View ────────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <ListTree className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Decision Tree</h3>
@@ -1439,7 +1602,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-5: Explainability Score ──────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Explainability Score</h3>
@@ -1503,7 +1666,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-7: Decision Evidence ─────────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-4">
             <BookOpen className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Evidence Used</h3>
@@ -1575,7 +1738,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* ── M4-8: Consistency Analysis ──────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/40 p-6">
+        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-5 w-5 text-indigo-400" />
             <h3 className="font-semibold text-white">Consistency Analysis</h3>
@@ -1636,14 +1799,15 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         <div className="mb-6 flex items-center justify-between print:hidden">
           <button
             onClick={() => setPhase("dashboard")}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white"
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
             aria-label="Return to dashboard"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to dashboard
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500"
+            className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+            style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 16px rgba(99,102,241,0.3)" }}
             aria-label="Print or save this report as PDF"
           >
             <Printer className="h-4 w-4" aria-hidden="true" /> Print / Save as PDF
@@ -1652,9 +1816,10 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
 
         <div
           id="icf-report"
-          className="rounded-2xl border border-slate-700 bg-slate-900 p-8 text-slate-200 print:border-0 print:bg-white print:p-0 print:text-black"
+          className="rounded-2xl border border-slate-700/70 p-8 text-slate-200 print:border-0 print:bg-white print:p-0 print:text-black"
+          style={{ background: "rgba(8,15,35,0.95)", boxShadow: "0 0 0 1px rgba(99,102,241,0.06) inset, 0 8px 32px rgba(0,0,0,0.3)" }}
         >
-          <div className="border-b border-slate-700 pb-6 mb-6 print:border-slate-300">
+          <div className="border-b border-slate-700/60 pb-6 mb-6 print:border-slate-300">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs uppercase tracking-widest text-indigo-400 print:text-indigo-700 mb-1">

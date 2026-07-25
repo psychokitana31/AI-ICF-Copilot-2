@@ -699,7 +699,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
     const liveCapScore  = liveScore(liveCaps);
 
     return (
-      <div className="mx-auto max-w-xl px-4 py-8">
+      <div className="mx-auto max-w-2xl px-6 py-10 lg:px-8">
         {/* Progress header */}
         <div className="mb-3 flex items-center justify-between text-xs">
           <span className="text-slate-400 font-medium">{totalAnswered} <span className="text-slate-600">/ 12 answered</span></span>
@@ -863,125 +863,155 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
     const reasoning    = buildReasoningSteps(scores, rec);
 
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
 
         {/* Demo Mode / Sample data banner */}
         {isSample && (
           <div
             role="status"
             aria-live="polite"
-            className="mb-6 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200"
+            className="mb-8 flex items-start gap-3 rounded-xl border border-amber-400/30 p-4 text-sm text-amber-200"
+            style={{ background: "rgba(245,158,11,0.06)" }}
           >
             <PlayCircle className="h-5 w-5 flex-shrink-0 text-amber-400 mt-0.5" aria-hidden="true" />
             <div>
               <p className="font-semibold text-amber-300">Demo Mode — Sample Data</p>
-              <p className="mt-0.5 text-xs">
-                This dashboard displays a pre-loaded representative profile. Scores, reasoning and the report are all live — generated from the sample answers in real time. Start your own assessment for personalised results.
+              <p className="mt-0.5 text-xs text-amber-200/70">
+                Pre-loaded representative profile. All scores, reasoning and the report are live — generated from sample answers in real time.
               </p>
             </div>
           </div>
         )}
 
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* ── Dashboard header ─────────────────────────────────────── */}
+        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-indigo-400">ICF Decision Intelligence</p>
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-1">
+              ICF Decision Intelligence
+            </p>
+            <h1 className="text-3xl font-bold text-white sm:text-4xl">
               {isSample ? "Sample Assessment Results" : "Your Assessment Results"}
             </h1>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Integrative Cognitive Framework · {buildProfileCode(scores)}
+            </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={handleRestart}
-              className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:bg-slate-800"
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:bg-slate-800/60 transition-colors"
               aria-label="Restart and take a new assessment"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Restart
             </button>
-            <button onClick={() => setPhase("report")} className="flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
-              Generate report →
+            <button onClick={() => setPhase("report")}
+              className="flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold text-white transition-all hover:brightness-110"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 12px rgba(99,102,241,0.3)" }}>
+              Generate Report →
             </button>
           </div>
         </div>
 
-        {/* 0. Diagnostic Timeline */}
-        <div className="mb-8 rounded-2xl border border-slate-700/60 p-5"
+        {/* ── Section 1: Two-column KPI + Graph ───────────────────────── */}
+        <div className="mb-10 grid gap-6 lg:grid-cols-[1fr_auto]">
+
+          {/* LEFT — KPI stack */}
+          <div className="flex flex-col gap-4">
+
+            {/* Decision Readiness hero */}
+            <div className="rounded-2xl border border-indigo-400/25 p-7 text-center relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.04))", boxShadow: "0 0 40px rgba(99,102,241,0.08) inset, 0 4px 24px rgba(0,0,0,0.2)" }}>
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div style={{ width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)" }} />
+              </div>
+              <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Decision Readiness</p>
+              <p className={cn("text-7xl font-bold leading-none icf-score-hero", scoreColor(scores.decisionReadiness))}>
+                {scores.decisionReadiness}
+              </p>
+              <p className="text-slate-600 text-sm mt-2 tabular-nums">out of 100</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <span className={cn("rounded-full border px-3 py-1 text-sm font-semibold", riskColor(scores.riskLevel))}>
+                  Risk: {scores.riskLevel}
+                </span>
+                <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold",
+                  scores.confidenceLevel === "High"     ? "border-green-400/30 text-green-300 bg-green-400/10" :
+                  scores.confidenceLevel === "Moderate" ? "border-amber-400/30 text-amber-300 bg-amber-400/10" :
+                  "border-slate-600 text-slate-400 bg-slate-700/50")}>
+                  Confidence: {scores.confidenceLevel}
+                </span>
+              </div>
+            </div>
+
+            {/* Score grid — 3 col */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Focus Index",    value: scores.focusIndex,    icon: Brain,  color: "text-blue-400",  glow: "rgba(59,130,246,0.1)"  },
+                { label: "Goal Alignment", value: scores.goalAlignment, icon: Target, color: "text-green-400", glow: "rgba(34,197,94,0.1)"   },
+                { label: "Capacity Index", value: scores.capacityIndex, icon: Zap,    color: "text-amber-400", glow: "rgba(245,158,11,0.1)"  },
+              ].map(m => (
+                <div key={m.label} className="rounded-2xl border border-slate-700/60 p-5 transition-colors hover:border-slate-600"
+                  style={{ background: `linear-gradient(135deg,${m.glow},rgba(15,23,42,0.75))` }}>
+                  <ScoreBar label={m.label} value={m.value} icon={m.icon} iconColor={m.color} />
+                </div>
+              ))}
+            </div>
+
+            {/* Signals */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-green-400/20 p-4" style={{ background: "rgba(34,197,94,0.04)" }}>
+                <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Strongest signal</p>
+                <p className="font-semibold text-green-300">{scores.strongestSignal}</p>
+              </div>
+              <div className="rounded-xl border border-red-400/20 p-4" style={{ background: "rgba(239,68,68,0.04)" }}>
+                <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Primary constraint</p>
+                <p className="font-semibold text-red-300">{scores.primaryConstraint}</p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* RIGHT — Human Development Graph (signature feature) */}
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-700/60 p-6 lg:w-[360px]"
+            style={{ background: "rgba(15,23,42,0.55)" }}>
+            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1 flex items-center gap-1.5 self-start">
+              <GitBranch className="h-3.5 w-3.5 text-indigo-400" /> Human Development Graph
+            </p>
+            <p className="text-xs text-slate-600 mb-4 self-start leading-relaxed">
+              Three domains assessed · three on roadmap
+            </p>
+            <HumanDevelopmentGraph mind={scores.focusIndex} goal={scores.goalAlignment} body={scores.capacityIndex} />
+          </div>
+
+        </div>
+
+        {/* ── Section 1b: Diagnostic pipeline (compact) ───────────────── */}
+        <div className="mb-10 rounded-2xl border border-slate-700/60 px-6 py-4 overflow-hidden"
           style={{ background: "rgba(15,23,42,0.55)" }}>
-          <p className="text-xs uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-1.5">
-            <Activity className="h-3.5 w-3.5 text-indigo-400" /> Diagnostic pipeline
-          </p>
           <div className="flex items-start gap-0 overflow-x-auto pb-1">
             {[
-              { label: "Questions",          sublabel: "12 answered",           icon: BookOpen,     done: true  },
-              { label: "Signal Extraction",  sublabel: "Mind · Goal · Capacity", icon: Activity,    done: true  },
-              { label: "Score Calculation",  sublabel: "Deterministic formulas", icon: TrendingUp,  done: true  },
-              { label: "Cross-domain",       sublabel: "Tension & leverage",     icon: GitBranch,   done: true  },
-              { label: "Decision Logic",     sublabel: "Rule matching",          icon: Brain,       done: true  },
-              { label: "Recommendation",     sublabel: `Pattern ${rec.pattern}`, icon: CheckCircle2, done: true },
+              { label: "Questions",         sublabel: "12 answered",            icon: BookOpen },
+              { label: "Signal Extraction", sublabel: "Mind · Goal · Capacity", icon: Activity },
+              { label: "Score Calculation", sublabel: "Deterministic formulas", icon: TrendingUp },
+              { label: "Cross-domain",      sublabel: "Tension & leverage",     icon: GitBranch },
+              { label: "Decision Logic",    sublabel: "Rule matching",          icon: Brain },
+              { label: "Recommendation",    sublabel: `Pattern ${rec.pattern}`, icon: CheckCircle2 },
             ].map((step, i, arr) => {
               const StepIcon = step.icon;
               return (
                 <div key={step.label} className="flex items-center flex-shrink-0">
                   <div className="flex flex-col items-center text-center w-20 sm:w-24">
-                    <div className={cn(
-                      "h-8 w-8 rounded-full border-2 flex items-center justify-center mb-1",
-                      step.done ? "border-indigo-500 bg-indigo-500/20" : "border-slate-600 bg-slate-800"
-                    )}>
-                      <StepIcon className={cn("h-3.5 w-3.5", step.done ? "text-indigo-400" : "text-slate-600")} />
+                    <div className="h-7 w-7 rounded-full border-2 border-indigo-500 bg-indigo-500/20 flex items-center justify-center mb-1">
+                      <StepIcon className="h-3 w-3 text-indigo-400" />
                     </div>
-                    <p className={cn("text-xs font-medium leading-tight", step.done ? "text-slate-200" : "text-slate-600")}>{step.label}</p>
+                    <p className="text-xs font-medium leading-tight text-slate-300">{step.label}</p>
                     <p className="text-xs text-slate-600 leading-tight mt-0.5 hidden sm:block">{step.sublabel}</p>
                   </div>
                   {i < arr.length - 1 && (
-                    <div className="h-px w-4 sm:w-6 bg-indigo-500/40 flex-shrink-0 mx-0.5 mt-[-14px]" />
+                    <div className="h-px w-4 sm:w-6 bg-indigo-500/30 flex-shrink-0 mx-0.5 mt-[-16px]" />
                   )}
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* 1. Decision Readiness hero */}
-        <div className="mb-6 rounded-2xl border border-indigo-400/25 p-7 text-center relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(99,102,241,0.04))", boxShadow: "0 0 40px rgba(99,102,241,0.08) inset, 0 4px 24px rgba(0,0,0,0.2)" }}>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div style={{ width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)" }} />
-          </div>
-          <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Decision Readiness</p>
-          <p className={cn("text-7xl font-bold leading-none icf-score-hero", scoreColor(scores.decisionReadiness))}>
-            {scores.decisionReadiness}
-          </p>
-          <p className="text-slate-600 text-sm mt-2 tabular-nums">out of 100</p>
-          <div className="mt-5 flex justify-center">
-            <span className={cn("rounded-full border px-4 py-1.5 text-sm font-semibold", riskColor(scores.riskLevel))}>
-              Risk Level: {scores.riskLevel}
-            </span>
-          </div>
-        </div>
-
-        {/* Score grid */}
-        <div className="mb-6 grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Focus Index",    value: scores.focusIndex,    icon: Brain,  color: "text-blue-400",  glow: "rgba(59,130,246,0.1)"  },
-            { label: "Goal Alignment", value: scores.goalAlignment, icon: Target, color: "text-green-400", glow: "rgba(34,197,94,0.1)"   },
-            { label: "Capacity Index", value: scores.capacityIndex, icon: Zap,    color: "text-amber-400", glow: "rgba(245,158,11,0.1)"  },
-          ].map(m => (
-            <div key={m.label} className="rounded-2xl border border-slate-700/60 p-5 transition-colors hover:border-slate-600"
-              style={{ background: `linear-gradient(135deg,${m.glow},rgba(15,23,42,0.75))` }}>
-              <ScoreBar label={m.label} value={m.value} icon={m.icon} iconColor={m.color} />
-            </div>
-          ))}
-        </div>
-
-        {/* Signals */}
-        <div className="mb-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-green-400/20 p-4" style={{ background: "rgba(34,197,94,0.04)" }}>
-            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Strongest signal</p>
-            <p className="font-semibold text-green-300">{scores.strongestSignal}</p>
-          </div>
-          <div className="rounded-xl border border-red-400/20 p-4" style={{ background: "rgba(239,68,68,0.04)" }}>
-            <p className="text-xs uppercase tracking-widest text-slate-500 mb-1.5">Primary constraint</p>
-            <p className="font-semibold text-red-300">{scores.primaryConstraint}</p>
           </div>
         </div>
 
@@ -1208,41 +1238,6 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
                 {scores.decisionConfidence >= 70 ? "High" : scores.decisionConfidence >= 45 ? "Moderate" : "Low"}
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* 4. ICF Human Development Graph */}
-        <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
-          <div className="flex items-center gap-2 mb-1">
-            <GitBranch className="h-5 w-5 text-indigo-400" />
-            <h3 className="font-semibold text-white">ICF Human Development Graph</h3>
-          </div>
-          <p className="text-xs text-slate-500 mb-5">
-            The Human Development Graph shows the currently assessed relationships between cognitive focus,
-            goal alignment and available capacity. Additional ICF domains will expand the model over time.
-          </p>
-          <HumanDevelopmentGraph mind={scores.focusIndex} goal={scores.goalAlignment} body={scores.capacityIndex} />
-          {/* M3: Future module descriptions */}
-          <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
-            {[
-              { label: "Language", caps: ["Verbal reasoning", "Communication clarity", "Linguistic adaptability"] },
-              { label: "Scenario", caps: ["Risk scenario modelling", "Decision branching", "Consequence mapping"] },
-              { label: "Global",   caps: ["System-level awareness", "Cultural context", "Long-range impact"] },
-            ].map(({ label, caps }) => (
-              <div key={label} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-2.5">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Lock className="h-3 w-3 text-slate-600" />
-                  <span className="text-slate-500 font-medium">Future module: {label}</span>
-                </div>
-                <ul className="space-y-0.5">
-                  {caps.map(c => (
-                    <li key={c} className="flex items-start gap-1.5 text-slate-600">
-                      <span className="mt-1 h-1 w-1 flex-shrink-0 rounded-full bg-slate-700" />{c}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -1482,31 +1477,28 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
           <p className="text-sm text-slate-200 leading-relaxed">{execSummary}</p>
         </div>
 
-        {/* ── M4-1: Decision Reasoning Pipeline ──────────────────────────── */}
+        {/* ── M4-1: Decision Reasoning Pipeline — visual ───────────────── */}
         <div className="mb-6 rounded-2xl border border-slate-700/60 p-6" style={{ background: "rgba(15,23,42,0.55)" }}>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-1">
             <Layers className="h-5 w-5 text-indigo-400" />
-            <h3 className="font-semibold text-white">Decision Reasoning</h3>
+            <h3 className="font-semibold text-white">Decision Reasoning Pipeline</h3>
           </div>
-          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-            Every step of the reasoning pipeline is shown below. Nothing is hidden. No machine learning is used — all logic is deterministic and rule-based.
+          <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+            Deterministic · Rule-based · No machine learning · Fully transparent
           </p>
-          <div className="space-y-0">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {reasoning.map((step, i) => (
-              <div key={step.stage} className="flex gap-4">
-                {/* Connector line */}
-                <div className="flex flex-col items-center">
-                  <div className={cn(
-                    "h-7 w-7 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0",
-                    "border-indigo-500 bg-indigo-500/20 text-indigo-300"
-                  )}>{i + 1}</div>
-                  {i < reasoning.length - 1 && <div className="w-px flex-1 bg-indigo-500/20 mt-0.5 mb-0.5 min-h-[16px]" />}
-                </div>
-                {/* Content */}
-                <div className="pb-5 flex-1 min-w-0">
-                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-0.5">{step.stage}</p>
-                  <p className="text-sm font-medium text-slate-200 mb-1">{step.summary}</p>
-                  <p className="text-xs text-slate-500 leading-relaxed">{step.detail}</p>
+              <div key={step.stage} className="relative rounded-xl border border-slate-700/60 p-4"
+                style={{ background: "rgba(99,102,241,0.04)" }}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 border-indigo-500 bg-indigo-500/20 text-xs font-bold text-indigo-300">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-0.5">{step.stage}</p>
+                    <p className="text-sm font-medium text-slate-200 mb-1 leading-snug">{step.summary}</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">{step.detail}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1770,12 +1762,15 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
         </div>
 
         {/* Footer CTA */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-          <button onClick={handleRestart} className="flex items-center justify-center gap-2 rounded-full border border-slate-700 px-6 py-2.5 text-sm text-slate-400 hover:bg-slate-800">
+        <div className="mt-10 flex flex-col gap-3 border-t border-slate-800 pt-8 sm:flex-row sm:justify-between">
+          <button onClick={handleRestart}
+            className="flex items-center justify-center gap-2 rounded-full border border-slate-700 px-6 py-2.5 text-sm text-slate-400 hover:bg-slate-800/60 transition-colors">
             <RotateCcw className="h-4 w-4" /> Take assessment again
           </button>
-          <button onClick={() => setPhase("report")} className="flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">
-            Generate ICF Demo Report →
+          <button onClick={() => setPhase("report")}
+            className="flex items-center justify-center gap-2 rounded-full px-8 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+            style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)", boxShadow: "0 0 16px rgba(99,102,241,0.3)" }}>
+            Generate ICF Report →
           </button>
         </div>
       </div>
@@ -1794,7 +1789,7 @@ export function DemoExperience({ autoDemo = false }: { autoDemo?: boolean }) {
     const rptExecSummary= buildExecutiveSummary(scores, rec);
     const rptReasoning  = buildReasoningSteps(scores, rec);
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-6 py-10 lg:px-10">
         {/* Report toolbar — hidden when printing */}
         <div className="mb-6 flex items-center justify-between print:hidden">
           <button

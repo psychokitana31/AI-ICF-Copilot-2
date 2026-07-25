@@ -1,4 +1,6 @@
 import { DemoExperience } from "@/components/demo/DemoExperience";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
   title: "ICF AI Copilot — Decision Intelligence Assessment",
@@ -15,41 +17,53 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
   const demoMode = params.mode === "demo";
 
   return (
-    <main
-      id="main-content"
-      className="min-h-screen bg-slate-950 text-white"
-    >
-      {/* Skip to main content — keyboard accessibility */}
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Skip link */}
       <a
-        href="#main-content"
+        href="#assessment-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
-        Skip to main content
+        Skip to assessment
       </a>
 
-      <div className="mx-auto max-w-7xl">
-        {/* Navigation bar */}
-        <nav
-          className="flex items-center justify-between border-b border-white/10 px-6 py-4"
-          aria-label="Assessment navigation"
-        >
-          <a
+      {/* ── Sticky nav ─────────────────────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-50 border-b border-white/[0.06]"
+        style={{ background: "rgba(2,6,23,0.9)", backdropFilter: "blur(20px) saturate(160%)" }}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
+          <Link
             href="/"
-            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-slate-300"
+            className="flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
             aria-label="Return to ICF AI Copilot home"
           >
-            <span aria-hidden="true">←</span> ICF AI Copilot
-          </a>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs text-amber-300">
-              {demoMode ? "Demo Mode — Sample Data" : "Decision Intelligence"}
-            </span>
-          </div>
-        </nav>
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">ICF AI Copilot</span>
+            <span className="sm:hidden">Home</span>
+          </Link>
 
-        {/* Assessment experience — autoDemo triggers sample load */}
+          <div className="flex items-center gap-2">
+            {demoMode ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 px-3 py-1 text-xs text-amber-300"
+                style={{ background: "rgba(245,158,11,0.08)" }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Demo Mode — Sample Data
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/30 px-3 py-1 text-xs text-indigo-300"
+                style={{ background: "rgba(99,102,241,0.08)" }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                Decision Intelligence Assessment
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Content ─────────────────────────────────────────────────────────── */}
+      <main id="assessment-content">
         <DemoExperience autoDemo={demoMode} />
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

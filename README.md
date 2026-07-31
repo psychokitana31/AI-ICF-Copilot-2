@@ -2,7 +2,16 @@
 
 > AI-powered Decision Intelligence platform for the IBM AI Builders Challenge
 > Wildcard — Intelligent Systems for the Future of Work
+## Problem Statement
 
+People often make important educational, career, and wellbeing decisions using fragmented information. Existing assessment tools usually evaluate only one dimension—such as personality, stress, or goals—and provide isolated results without showing how these factors interact.
+
+Many AI systems also operate as black boxes, offering recommendations without explaining the reasoning behind them. Users need a more transparent and holistic approach that integrates multiple dimensions of human development into meaningful decision support.
+## Solution Description
+
+ICF AI Copilot is an explainable AI Decision Intelligence platform built on the Integrative Cognitive Framework (ICF).
+
+The platform combines evidence-informed assessments, AI reasoning, Retrieval-Augmented Generation (RAG), and IBM Granite models to create an integrated Human Development Profile. Instead of isolated scores, users receive transparent recommendations, prioritized action plans, and an AI Copilot capable of explaining the reasoning behind every suggestion.
 ---
 
 ## What it does
@@ -41,7 +50,17 @@ FastAPI (Railway)
 See [`icf-ai-copilot-plan.md`](../icf-ai-copilot-plan.md) for the full architecture design.
 
 ---
+## AI Approach
 
+The platform combines:
+
+- Multi-domain evidence-informed assessment
+- Retrieval-Augmented Generation (RAG)
+- IBM Granite large language models
+- Semantic search using Granite Embeddings
+- Explainable AI reasoning
+- Human-in-the-loop decision support
+- Governance, auditability, and responsible AI using watsonx.governance
 ## Platform Surfaces
 
 - **User App** — Individual assessment, AI Copilot, profile, action plans
@@ -49,7 +68,11 @@ See [`icf-ai-copilot-plan.md`](../icf-ai-copilot-plan.md) for the full architect
 - **Coach Portal** — Consent-gated member summaries, cohort insights
 
 ---
+## Selected Challenge Theme
 
+IBM AI Builders Challenge
+
+**Wildcard — Intelligent Systems for the Future of Work**
 ## Local Development
 
 ### Prerequisites
@@ -146,3 +169,15 @@ icf-ai-copilot/
 **IBM AI Builders Challenge — Wildcard: Intelligent Systems for the Future of Work**
 
 Demonstrates: AI Co-worker · Decision Intelligence · Workflow Orchestration · Personalized Recommendations · Explainable AI · Human-AI Collaboration
+## How IBM Bob Was Used
+
+IBM Bob supported the project throughout the development process by assisting with:
+
+- brainstorming product ideas and user workflows;
+- planning the technical architecture;
+- refining AI prompts and interactions;
+- generating technical documentation;
+- improving the README and project materials;
+- preparing competition assets and submission content.
+
+All methodological decisions, system design, and domain expertise were developed and validated by the project team.
